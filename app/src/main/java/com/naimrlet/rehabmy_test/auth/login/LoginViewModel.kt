@@ -21,7 +21,7 @@ class LoginViewModel : ViewModel() {
     var emailError by mutableStateOf("")
     var passwordError by mutableStateOf("")
     var isLoading by mutableStateOf(false)
-    var isLoggedIn by mutableStateOf(false)
+        private set
 
     fun onEmailChange(newEmail: String) {
         email = newEmail
@@ -59,14 +59,15 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    fun login() {
+    fun login(onSuccess: () -> Unit) {
         if (validateEmail() && validatePassword()) {
+            // Set loading state BEFORE launching coroutine
             isLoading = true
-            viewModelScope.launch {
-                try {
-                    auth.signInWithEmailAndPassword(email, password).await()
-                    isLoggedIn = true
-                } catch (e: Exception) {
+        viewModelScope.launch {
+            try {
+                auth.signInWithEmailAndPassword(email, password).await()
+                onSuccess()
+            } catch(e: Exception) {
                     when (e) {
                         is FirebaseAuthInvalidUserException ->
                             emailError = "Account not found"

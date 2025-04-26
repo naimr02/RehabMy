@@ -19,10 +19,11 @@ fun LoginScreen(
     viewModel: LoginViewModel = viewModel()
 ) {
     // Navigate when login is successful
-    if (viewModel.isLoggedIn) {
-        onLoginSuccess()
-        return
-    }
+    /* LaunchedEffect(Unit) {
+        if (Firebase.auth.currentUser != null) {
+            onLoginSuccess()
+        }
+    } */
 
     Column(
         modifier = Modifier
@@ -104,7 +105,7 @@ fun LoginScreen(
 
         // Login button
         Button(
-            onClick = { viewModel.login() },
+            onClick = { viewModel.login(onSuccess = onLoginSuccess) },
             enabled = !viewModel.isLoading,
             modifier = Modifier
                 .fillMaxWidth()

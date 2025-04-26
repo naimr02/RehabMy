@@ -129,7 +129,7 @@ fun SignUpScreen(
 
         // Sign Up Button
         Button(
-            onClick = { viewModel.signUp() },
+            onClick = { viewModel.signUp(onSuccess = onSignUpSuccess) },
             enabled = !viewModel.isLoading,
             modifier = Modifier
                 .fillMaxWidth()

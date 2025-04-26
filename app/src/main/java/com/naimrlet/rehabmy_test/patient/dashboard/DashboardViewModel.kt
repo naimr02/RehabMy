@@ -1,4 +1,4 @@
-package com.naimrlet.rehabmy.patient.dashboard
+package com.naimrlet.rehabmy_test.patient.dashboard
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

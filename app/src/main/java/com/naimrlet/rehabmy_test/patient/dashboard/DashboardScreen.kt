@@ -5,12 +5,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.naimrlet.rehabmy.patient.dashboard.DashboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -18,9 +18,11 @@ fun DashboardScreen(
     onLogout: () -> Unit,
     viewModel: DashboardViewModel = viewModel()
 ) {
-    if (viewModel.isLoggedOut) {
-        onLogout()
-        return
+    // Use LaunchedEffect to handle logout state
+    LaunchedEffect(viewModel.isLoggedOut) {
+        if (viewModel.isLoggedOut) {
+            onLogout()
+        }
     }
 
     Scaffold(

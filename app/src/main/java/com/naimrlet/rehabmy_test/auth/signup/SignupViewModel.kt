@@ -92,7 +92,7 @@ class SignUpViewModel : ViewModel() {
         }
     }
 
-    fun signUp() {
+    fun signUp(onSuccess: () -> Unit) {
         val isValidName = validateName()
         val isValidEmail = validateEmail()
         val isValidPassword = validatePassword()
@@ -103,7 +103,7 @@ class SignUpViewModel : ViewModel() {
             viewModelScope.launch {
                 try {
                     auth.createUserWithEmailAndPassword(email, password).await()
-                    isSignedUp = true
+                    onSuccess()
                 } catch (e: Exception) {
                     when (e) {
                         is FirebaseAuthWeakPasswordException ->

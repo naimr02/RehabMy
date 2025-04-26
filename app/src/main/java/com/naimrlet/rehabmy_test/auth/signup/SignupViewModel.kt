@@ -4,8 +4,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class SignUpViewModel : ViewModel() {
+    private val auth: FirebaseAuth = Firebase.auth
+
     var name by mutableStateOf("")
     var email by mutableStateOf("")
     var password by mutableStateOf("")
@@ -89,11 +100,25 @@ class SignUpViewModel : ViewModel() {
 
         if (isValidName && isValidEmail && isValidPassword && isValidConfirmPassword) {
             isLoading = true
-            // Simulate network call
-            android.os.Handler().postDelayed({
-                isLoading = false
-                isSignedUp = true
-            }, 1500)
+            viewModelScope.launch {
+                try {
+                    auth.createUserWithEmailAndPassword(email, password).await()
+                    isSignedUp = true
+                } catch (e: Exception) {
+                    when (e) {
+                        is FirebaseAuthWeakPasswordException ->
+                            passwordError = "Password too weak (min 6 chars)"
+                        is FirebaseAuthUserCollisionException ->
+                            emailError = "Email already registered"
+                        is FirebaseAuthInvalidCredentialsException ->
+                            emailError = "Invalid email format"
+                        else ->
+                            emailError = "Registration failed: ${e.message}"
+                    }
+                } finally {
+                    isLoading = false
+                }
+            }
         }
     }
 }

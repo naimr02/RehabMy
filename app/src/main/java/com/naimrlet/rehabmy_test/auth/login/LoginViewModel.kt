@@ -4,8 +4,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class LoginViewModel : ViewModel() {
+    private val auth: FirebaseAuth = Firebase.auth
+
     var email by mutableStateOf("")
     var password by mutableStateOf("")
     var emailError by mutableStateOf("")
@@ -52,12 +62,23 @@ class LoginViewModel : ViewModel() {
     fun login() {
         if (validateEmail() && validatePassword()) {
             isLoading = true
-            // In a real app, this would call a repository or service
-            // For this example, we'll simulate a network delay
-            android.os.Handler().postDelayed({
-                isLoading = false
-                isLoggedIn = true
-            }, 1500)
+            viewModelScope.launch {
+                try {
+                    auth.signInWithEmailAndPassword(email, password).await()
+                    isLoggedIn = true
+                } catch (e: Exception) {
+                    when (e) {
+                        is FirebaseAuthInvalidUserException ->
+                            emailError = "Account not found"
+                        is FirebaseAuthInvalidCredentialsException ->
+                            passwordError = "Invalid password"
+                        else ->
+                            emailError = "Authentication failed: ${e.message}"
+                    }
+                } finally {
+                    isLoading = false
+                }
+            }
         }
     }
 }

@@ -7,7 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import com.naimrlet.rehabmy_test.auth.AuthViewModel
 import com.naimrlet.rehabmy_test.auth.login.LoginScreen
 import com.naimrlet.rehabmy_test.auth.signup.SignUpScreen
-import com.naimrlet.rehabmy_test.patient.dashboard.DashboardScreen
+import com.naimrlet.rehabmy_test.patient.dashboard.PatientDashboardScreen
 
 @Composable
 fun AppNavigation(authViewModel: AuthViewModel) {
@@ -32,11 +32,11 @@ fun AppNavigation(authViewModel: AuthViewModel) {
         }
 
         composable("dashboard") {
-            DashboardScreen(
+            PatientDashboardScreen(
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate("login") {
-                        popUpTo("dashboard") { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )

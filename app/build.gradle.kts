@@ -57,6 +57,8 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.compose)
     implementation(libs.androidx.navigation.ui)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.database)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

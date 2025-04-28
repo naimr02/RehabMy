@@ -1,7 +1,5 @@
 package com.naimrlet.rehabmy_test.patient.dashboard
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -13,16 +11,17 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.naimrlet.rehabmy_test.patient.about.AboutScreen
+import com.naimrlet.rehabmy_test.patient.dashboard.home.DashboardHomeScreen
+import com.naimrlet.rehabmy_test.patient.therapist.TherapistScreen
 
 sealed class DashboardSection(
     val route: String,
@@ -117,28 +116,14 @@ fun PatientDashboardScreen(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(DashboardSection.Therapist.route) {
-                SectionContent("Therapist Section")
+                TherapistScreen()
             }
             composable(DashboardSection.Dashboard.route) {
-                SectionContent("Dashboard Section")
+                DashboardHomeScreen()
             }
             composable(DashboardSection.About.route) {
-                SectionContent("About Section")
+                AboutScreen()
             }
         }
-    }
-}
-
-@Composable
-fun SectionContent(sectionName: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = sectionName,
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
-        )
     }
 }

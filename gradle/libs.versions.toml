@@ -16,6 +16,8 @@ firebaseAuth = "23.2.0"
 navigationFragmentCompose = "2.8.9"
 navigationUi = "2.8.9"
 navigationCompose = "2.8.9"
+firebaseFirestore = "25.1.4"
+firebaseDatabase = "21.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -39,6 +41,8 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth", version
 androidx-navigation-fragment-compose = { group = "androidx.navigation", name = "navigation-fragment-compose", version.ref = "navigationFragmentCompose" }
 androidx-navigation-ui = { group = "androidx.navigation", name = "navigation-ui", version.ref = "navigationUi" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore", version.ref = "firebaseFirestore" }
+firebase-database = { group = "com.google.firebase", name = "firebase-database", version.ref = "firebaseDatabase" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

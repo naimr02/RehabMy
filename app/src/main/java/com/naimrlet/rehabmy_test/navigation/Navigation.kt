@@ -8,9 +8,13 @@ import com.naimrlet.rehabmy_test.auth.AuthViewModel
 import com.naimrlet.rehabmy_test.auth.login.LoginScreen
 import com.naimrlet.rehabmy_test.auth.signup.SignUpScreen
 import com.naimrlet.rehabmy_test.patient.dashboard.PatientDashboardScreen
+import com.naimrlet.rehabmy_test.ui.theme.DarkModeViewModel
 
 @Composable
-fun AppNavigation(authViewModel: AuthViewModel) {
+fun AppNavigation(
+    authViewModel: AuthViewModel,
+    darkModeViewModel: DarkModeViewModel
+) {
     val navController = rememberNavController()
 
     NavHost(
@@ -38,7 +42,8 @@ fun AppNavigation(authViewModel: AuthViewModel) {
                     navController.navigate("login") {
                         popUpTo(0) { inclusive = true }
                     }
-                }
+                },
+                darkModeViewModel = darkModeViewModel
             )
         }
     }

@@ -23,14 +23,24 @@ fun AppNavigation(
     ) {
         composable("login") {
             LoginScreen(
-                onLoginSuccess = { authViewModel.login() },
+                onLoginSuccess = {
+                    // Navigate directly on success instead of calling non-existent method
+                    navController.navigate("dashboard") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                },
                 onNavigateToSignUp = { navController.navigate("signup") }
             )
         }
 
         composable("signup") {
             SignUpScreen(
-                onSignUpSuccess = { authViewModel.login() },
+                onSignUpSuccess = {
+                    // Navigate directly on success instead of calling non-existent method
+                    navController.navigate("dashboard") {
+                        popUpTo("signup") { inclusive = true }
+                    }
+                },
                 onNavigateToLogin = { navController.popBackStack() }
             )
         }

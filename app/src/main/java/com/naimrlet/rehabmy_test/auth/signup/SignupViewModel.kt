@@ -5,18 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthUserCollisionException
-import com.google.firebase.auth.FirebaseAuthWeakPasswordException
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
+import com.naimrlet.rehabmy_test.auth.AuthViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
-class SignUpViewModel : ViewModel() {
-    private val auth: FirebaseAuth = Firebase.auth
-
+class SignUpViewModel(
+    private val authViewModel: AuthViewModel = AuthViewModel()
+) : ViewModel() {
     var name by mutableStateOf("")
     var email by mutableStateOf("")
     var password by mutableStateOf("")
@@ -27,7 +21,7 @@ class SignUpViewModel : ViewModel() {
     var passwordError by mutableStateOf("")
     var confirmPasswordError by mutableStateOf("")
 
-    var isLoading by mutableStateOf(false)
+    val isLoading get() = authViewModel.isLoading
     var isSignedUp by mutableStateOf(false)
 
     fun onNameChange(newName: String) {
@@ -50,75 +44,57 @@ class SignUpViewModel : ViewModel() {
         confirmPasswordError = ""
     }
 
-    private fun validateName(): Boolean {
-        return if (name.isBlank()) {
-            nameError = "Name cannot be empty"
-            false
-        } else {
-            true
-        }
-    }
+    private fun validateInput(): Boolean {
+        var isValid = true
 
-    private fun validateEmail(): Boolean {
-        return if (email.isBlank()) {
+        if (name.isBlank()) {
+            nameError = "Name cannot be empty"
+            isValid = false
+        }
+
+        if (email.isBlank()) {
             emailError = "Email cannot be empty"
-            false
+            isValid = false
         } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             emailError = "Enter a valid email address"
-            false
-        } else {
-            true
+            isValid = false
         }
-    }
 
-    private fun validatePassword(): Boolean {
-        return if (password.isBlank()) {
+        if (password.isBlank()) {
             passwordError = "Password cannot be empty"
-            false
+            isValid = false
         } else if (password.length < 6) {
             passwordError = "Password must be at least 6 characters"
-            false
-        } else {
-            true
+            isValid = false
         }
-    }
 
-    private fun validateConfirmPassword(): Boolean {
-        return if (confirmPassword != password) {
+        if (confirmPassword != password) {
             confirmPasswordError = "Passwords do not match"
-            false
-        } else {
-            true
+            isValid = false
         }
+
+        return isValid
     }
 
     fun signUp(onSuccess: () -> Unit) {
-        val isValidName = validateName()
-        val isValidEmail = validateEmail()
-        val isValidPassword = validatePassword()
-        val isValidConfirmPassword = validateConfirmPassword()
+        if (!validateInput()) return
 
-        if (isValidName && isValidEmail && isValidPassword && isValidConfirmPassword) {
-            isLoading = true
-            viewModelScope.launch {
-                try {
-                    auth.createUserWithEmailAndPassword(email, password).await()
+        viewModelScope.launch {
+            authViewModel.signUpWithEmail(email, password)
+                .onSuccess {
+                    isSignedUp = true
                     onSuccess()
-                } catch (e: Exception) {
-                    when (e) {
-                        is FirebaseAuthWeakPasswordException ->
-                            passwordError = "Password too weak (min 6 chars)"
-                        is FirebaseAuthUserCollisionException ->
-                            emailError = "Email already registered"
-                        is FirebaseAuthInvalidCredentialsException ->
-                            emailError = "Invalid email format"
-                        else ->
-                            emailError = "Registration failed: ${e.message}"
-                    }
-                } finally {
-                    isLoading = false
                 }
-            }
+                .onFailure { error ->
+                    when {
+                        error.message?.contains("password", ignoreCase = true) == true ->
+                            passwordError = error.message ?: "Password issue"
+                        error.message?.contains("email", ignoreCase = true) == true ->
+                            emailError = error.message ?: "Email issue"
+                        else ->
+                            emailError = error.message ?: "Registration failed"
+                    }
+                }
         }
     }
 }

@@ -1,16 +1,13 @@
 package com.naimrlet.rehabmy_test.auth.signup
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.naimrlet.rehabmy_test.auth.components.*
 
 @Composable
 fun SignUpScreen(
@@ -23,138 +20,57 @@ fun SignUpScreen(
         return
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    AuthScaffold(
+        title = "Create Account",
+        subtitle = "Join our community"
     ) {
-        Text(
-            text = "Create Account",
-            style = MaterialTheme.typography.displaySmall
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Join our community",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Name Field
-        OutlinedTextField(
+        NameField(
             value = viewModel.name,
-            onValueChange = { viewModel.onNameChange(it) },
-            label = { Text("Full Name") },
-            isError = viewModel.nameError.isNotEmpty(),
-            supportingText = {
-                if (viewModel.nameError.isNotEmpty()) {
-                    Text(viewModel.nameError, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            onValueChange = viewModel::onNameChange,
+            error = viewModel.nameError
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Email Field
-        OutlinedTextField(
+        EmailField(
             value = viewModel.email,
-            onValueChange = { viewModel.onEmailChange(it) },
-            label = { Text("Email") },
-            isError = viewModel.emailError.isNotEmpty(),
-            supportingText = {
-                if (viewModel.emailError.isNotEmpty()) {
-                    Text(viewModel.emailError, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
-            ),
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            onValueChange = viewModel::onEmailChange,
+            error = viewModel.emailError
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Password Field
-        OutlinedTextField(
+        PasswordField(
             value = viewModel.password,
-            onValueChange = { viewModel.onPasswordChange(it) },
-            label = { Text("Password") },
-            isError = viewModel.passwordError.isNotEmpty(),
-            supportingText = {
-                if (viewModel.passwordError.isNotEmpty()) {
-                    Text(viewModel.passwordError, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Next
-            ),
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            onValueChange = viewModel::onPasswordChange,
+            error = viewModel.passwordError,
+            label = "Password",
+            imeAction = ImeAction.Next
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Confirm Password Field
-        OutlinedTextField(
+        PasswordField(
             value = viewModel.confirmPassword,
-            onValueChange = { viewModel.onConfirmPasswordChange(it) },
-            label = { Text("Confirm Password") },
-            isError = viewModel.confirmPasswordError.isNotEmpty(),
-            supportingText = {
-                if (viewModel.confirmPasswordError.isNotEmpty()) {
-                    Text(viewModel.confirmPasswordError, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done
-            ),
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            onValueChange = viewModel::onConfirmPasswordChange,
+            error = viewModel.confirmPasswordError,
+            label = "Confirm Password"
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Sign Up Button
-        Button(
-            onClick = { viewModel.signUp(onSuccess = onSignUpSuccess) },
-            enabled = !viewModel.isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-        ) {
-            if (viewModel.isLoading) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Text("SIGN UP")
-            }
-        }
+        AuthButton(
+            text = "SIGN UP",
+            isLoading = viewModel.isLoading,
+            onClick = { viewModel.signUp(onSuccess = onSignUpSuccess) }
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Login option
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Already have an account?")
-            TextButton(onClick = onNavigateToLogin) {
-                Text("Login")
-            }
-        }
+        AuthToggleRow(
+            question = "Already have an account?",
+            actionText = "Login",
+            onActionClick = onNavigateToLogin
+        )
     }
 }

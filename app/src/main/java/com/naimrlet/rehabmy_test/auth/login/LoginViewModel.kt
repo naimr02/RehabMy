@@ -5,81 +5,64 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthInvalidUserException
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
+import com.naimrlet.rehabmy_test.auth.AuthViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
-class LoginViewModel : ViewModel() {
-    private val auth: FirebaseAuth = Firebase.auth
-
+class LoginViewModel(
+    private val authViewModel: AuthViewModel = AuthViewModel()
+) : ViewModel() {
     var email by mutableStateOf("")
     var password by mutableStateOf("")
     var emailError by mutableStateOf("")
     var passwordError by mutableStateOf("")
-    var isLoading by mutableStateOf(false)
-        private set
+
+    val isLoading get() = authViewModel.isLoading
 
     fun onEmailChange(newEmail: String) {
         email = newEmail
-        emailError = ""  // Clear error when typing
+        emailError = ""
     }
 
     fun onPasswordChange(newPassword: String) {
         password = newPassword
-        passwordError = ""  // Clear error when typing
+        passwordError = ""
     }
 
-    private fun validateEmail(): Boolean {
-        return if (email.isBlank()) {
+    private fun validateInput(): Boolean {
+        var isValid = true
+
+        if (email.isBlank()) {
             emailError = "Email cannot be empty"
-            false
+            isValid = false
         } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             emailError = "Enter a valid email address"
-            false
-        } else {
-            emailError = ""
-            true
+            isValid = false
         }
-    }
 
-    private fun validatePassword(): Boolean {
-        return if (password.isBlank()) {
+        if (password.isBlank()) {
             passwordError = "Password cannot be empty"
-            false
+            isValid = false
         } else if (password.length < 6) {
             passwordError = "Password must be at least 6 characters"
-            false
-        } else {
-            passwordError = ""
-            true
+            isValid = false
         }
+
+        return isValid
     }
 
     fun login(onSuccess: () -> Unit) {
-        if (validateEmail() && validatePassword()) {
-            // Set loading state BEFORE launching coroutine
-            isLoading = true
+        if (!validateInput()) return
+
         viewModelScope.launch {
-            try {
-                auth.signInWithEmailAndPassword(email, password).await()
-                onSuccess()
-            } catch(e: Exception) {
-                    when (e) {
-                        is FirebaseAuthInvalidUserException ->
-                            emailError = "Account not found"
-                        is FirebaseAuthInvalidCredentialsException ->
-                            passwordError = "Invalid password"
-                        else ->
-                            emailError = "Authentication failed: ${e.message}"
+            authViewModel.loginWithEmail(email, password)
+                .onSuccess { onSuccess() }
+                .onFailure { error ->
+                    if (error.message?.contains("password", ignoreCase = true) == true) {
+                        passwordError = error.message ?: "Invalid password"
+                    } else {
+                        emailError = error.message ?: "Login failed"
                     }
-                } finally {
-                    isLoading = false
                 }
-            }
         }
     }
 }

@@ -1,16 +1,17 @@
 package com.naimrlet.rehabmy_test.auth.login
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.naimrlet.rehabmy_test.auth.components.*
 
 @Composable
 fun LoginScreen(
@@ -18,80 +19,27 @@ fun LoginScreen(
     onNavigateToSignUp: () -> Unit,
     viewModel: LoginViewModel = viewModel()
 ) {
-    // Navigate when login is successful
-    /* LaunchedEffect(Unit) {
-        if (Firebase.auth.currentUser != null) {
-            onLoginSuccess()
-        }
-    } */
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    AuthScaffold(
+        title = "Welcome",
+        subtitle = "Sign in to continue"
     ) {
-        // Header
-        Text(
-            text = "Welcome",
-            style = MaterialTheme.typography.displaySmall
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Sign in to continue",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Email field
-        OutlinedTextField(
+        EmailField(
             value = viewModel.email,
-            onValueChange = { viewModel.onEmailChange(it) },
-            label = { Text("Email") },
-            isError = viewModel.emailError.isNotEmpty(),
-            supportingText = {
-                if (viewModel.emailError.isNotEmpty()) {
-                    Text(viewModel.emailError, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
-            ),
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            onValueChange = viewModel::onEmailChange,
+            error = viewModel.emailError
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Password field
-        OutlinedTextField(
+        PasswordField(
             value = viewModel.password,
-            onValueChange = { viewModel.onPasswordChange(it) },
-            label = { Text("Password") },
-            isError = viewModel.passwordError.isNotEmpty(),
-            supportingText = {
-                if (viewModel.passwordError.isNotEmpty()) {
-                    Text(viewModel.passwordError, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done
-            ),
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            onValueChange = viewModel::onPasswordChange,
+            error = viewModel.passwordError,
+            label = "Password"
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Forgot password
         Box(modifier = Modifier.fillMaxWidth()) {
             TextButton(
                 onClick = { /* Handle forgot password */ },
@@ -103,37 +51,18 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Login button
-        Button(
-            onClick = { viewModel.login(onSuccess = onLoginSuccess) },
-            enabled = !viewModel.isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-        ) {
-            if (viewModel.isLoading) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Text("LOGIN")
-            }
-        }
+        AuthButton(
+            text = "LOGIN",
+            isLoading = viewModel.isLoading,
+            onClick = { viewModel.login(onSuccess = onLoginSuccess) }
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Sign up option
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "Don't have an account?",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            TextButton(onClick = onNavigateToSignUp) {
-                Text("Sign Up")
-            }
-        }
+        AuthToggleRow(
+            question = "Don't have an account?",
+            actionText = "Sign Up",
+            onActionClick = onNavigateToSignUp
+        )
     }
 }

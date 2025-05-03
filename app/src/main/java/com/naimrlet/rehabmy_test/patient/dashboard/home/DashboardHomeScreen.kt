@@ -20,26 +20,19 @@ import com.google.firebase.auth.FirebaseAuth
 import com.naimrlet.rehabmy_test.model.Exercise
 
 @Composable
-fun DashboardHomeScreen(
-    viewModel: ExerciseViewModel = viewModel()
-) {
+fun DashboardHomeScreen(viewModel: ExerciseViewModel = viewModel()) {
     val auth = FirebaseAuth.getInstance()
     val exercises by viewModel.exercises.collectAsState()
     val loading by viewModel.loading.collectAsState()
 
     LaunchedEffect(Unit) {
-        if (auth.currentUser == null) {
-            Log.e("AuthCheck", "User not authenticated when entering dashboard")
-        } else {
-            Log.d("AuthCheck", "Authenticated user: ${auth.currentUser?.uid}")
+        auth.currentUser?.let {
             viewModel.loadExercises()
-        }
+        } ?: Log.e("AuthCheck", "User not authenticated when entering dashboard")
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -55,31 +48,46 @@ fun DashboardHomeScreen(
             )
         } else {
             ProgressSection(exercises)
-
             Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = "Your Exercises",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier
-                    .align(Alignment.Start)
-                    .padding(bottom = 16.dp)
+            ExercisesSection(
+                exercises = exercises,
+                onExerciseCheckedChange = { exercise, isCompleted ->
+                    viewModel.updateExerciseStatus(exercise, isCompleted)
+                }
             )
+        }
+    }
+}
 
-            if (exercises.isEmpty()) {
-                Text(
-                    text = "No exercises assigned yet",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-            } else {
-                ExerciseList(
-                    exercises = exercises,
-                    onExerciseCheckedChange = { exercise, isCompleted ->
-                        viewModel.updateExerciseStatus(exercise, isCompleted)
-                    }
-                )
+@Composable
+private fun ExercisesSection(
+    exercises: List<Exercise>,
+    onExerciseCheckedChange: (Exercise, Boolean) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Your Exercises",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        if (exercises.isEmpty()) {
+            Text(
+                text = "No exercises assigned yet",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(exercises) { exercise ->
+                    ExerciseItem(
+                        exercise = exercise,
+                        onCheckedChange = { isChecked ->
+                            onExerciseCheckedChange(exercise, isChecked)
+                        }
+                    )
+                }
             }
         }
     }
@@ -88,10 +96,8 @@ fun DashboardHomeScreen(
 @Composable
 fun ProgressSection(exercises: List<Exercise>) {
     val completedCount = exercises.count { it.completed }
-    val totalCount = exercises.size.coerceAtLeast(1) // Avoid division by zero
+    val totalCount = exercises.size.coerceAtLeast(1)
     val percentage = (completedCount.toFloat() / totalCount) * 100f
-
-    // Animate the progress
     val animatedPercentage by animateFloatAsState(
         targetValue = percentage / 100f,
         animationSpec = tween(1000),
@@ -99,9 +105,7 @@ fun ProgressSection(exercises: List<Exercise>) {
     )
 
     Box(
-        modifier = Modifier
-            .size(220.dp)
-            .padding(16.dp),
+        modifier = Modifier.size(220.dp).padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(
@@ -113,9 +117,7 @@ fun ProgressSection(exercises: List<Exercise>) {
             color = MaterialTheme.colorScheme.primary
         )
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "${percentage.toInt()}%",
                 fontSize = 36.sp,
@@ -138,29 +140,7 @@ fun ProgressSection(exercises: List<Exercise>) {
 }
 
 @Composable
-fun ExerciseList(
-    exercises: List<Exercise>,
-    onExerciseCheckedChange: (Exercise, Boolean) -> Unit
-) {
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(exercises) { exercise ->
-            ExerciseItem(
-                exercise = exercise,
-                onCheckedChange = { isChecked ->
-                    onExerciseCheckedChange(exercise, isChecked)
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun ExerciseItem(
-    exercise: Exercise,
-    onCheckedChange: (Boolean) -> Unit
-) {
+fun ExerciseItem(exercise: Exercise, onCheckedChange: (Boolean) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -168,16 +148,12 @@ fun ExerciseItem(
         )
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 16.dp)
+                modifier = Modifier.weight(1f).padding(end = 16.dp)
             ) {
                 Text(
                     text = exercise.name,
@@ -196,7 +172,6 @@ fun ExerciseItem(
                     )
                 }
             }
-
             Checkbox(
                 checked = exercise.completed,
                 onCheckedChange = onCheckedChange,

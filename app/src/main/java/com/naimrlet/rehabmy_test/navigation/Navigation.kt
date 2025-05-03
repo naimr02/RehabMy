@@ -1,6 +1,7 @@
 package com.naimrlet.rehabmy_test.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -10,46 +11,48 @@ import com.naimrlet.rehabmy_test.auth.signup.SignUpScreen
 import com.naimrlet.rehabmy_test.patient.dashboard.PatientDashboardScreen
 import com.naimrlet.rehabmy_test.ui.theme.DarkModeViewModel
 
+sealed class AppDestination(val route: String) {
+    data object Login : AppDestination("login")
+    data object SignUp : AppDestination("signup")
+    data object Dashboard : AppDestination("dashboard")
+}
+
 @Composable
 fun AppNavigation(
     authViewModel: AuthViewModel,
-    darkModeViewModel: DarkModeViewModel
+    darkModeViewModel: DarkModeViewModel,
+    navController: NavHostController = rememberNavController()
 ) {
-    val navController = rememberNavController()
-
     NavHost(
         navController = navController,
-        startDestination = if (authViewModel.isAuthenticated) "dashboard" else "login"
+        startDestination = if (authViewModel.isAuthenticated)
+            AppDestination.Dashboard.route else AppDestination.Login.route
     ) {
-        composable("login") {
+        composable(AppDestination.Login.route) {
             LoginScreen(
                 onLoginSuccess = {
-                    // Navigate directly on success instead of calling non-existent method
-                    navController.navigate("dashboard") {
-                        popUpTo("login") { inclusive = true }
+                    navController.navigate(AppDestination.Dashboard.route) {
+                        popUpTo(AppDestination.Login.route) { inclusive = true }
                     }
                 },
-                onNavigateToSignUp = { navController.navigate("signup") }
+                onNavigateToSignUp = { navController.navigate(AppDestination.SignUp.route) }
             )
         }
-
-        composable("signup") {
+        composable(AppDestination.SignUp.route) {
             SignUpScreen(
                 onSignUpSuccess = {
-                    // Navigate directly on success instead of calling non-existent method
-                    navController.navigate("dashboard") {
-                        popUpTo("signup") { inclusive = true }
+                    navController.navigate(AppDestination.Dashboard.route) {
+                        popUpTo(AppDestination.SignUp.route) { inclusive = true }
                     }
                 },
                 onNavigateToLogin = { navController.popBackStack() }
             )
         }
-
-        composable("dashboard") {
+        composable(AppDestination.Dashboard.route) {
             PatientDashboardScreen(
                 onLogout = {
                     authViewModel.logout()
-                    navController.navigate("login") {
+                    navController.navigate(AppDestination.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 },

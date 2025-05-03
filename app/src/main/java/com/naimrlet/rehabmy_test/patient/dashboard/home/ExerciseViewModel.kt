@@ -16,94 +16,68 @@ import kotlinx.coroutines.tasks.await
 class ExerciseViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-
     private val _exercises = MutableStateFlow<List<Exercise>>(emptyList())
     val exercises: StateFlow<List<Exercise>> = _exercises
-
     private val _loading = MutableStateFlow(true)
     val loading: StateFlow<Boolean> = _loading
 
-    // Add debug tag
     companion object {
         private const val TAG = "ExerciseViewModel"
+        private const val USERS_COLLECTION = "users"
+        private const val EXERCISES_COLLECTION = "exercises"
+        private const val COMPLETED_FIELD = "completed"
     }
 
     fun loadExercises() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Attempting to load exercises...")
+                val userId = getCurrentUserId() ?: return@launch
 
-                val user = auth.currentUser
-                if (user == null) {
-                    Log.e(TAG, "No authenticated user found!")
-                    _loading.value = false
-                    return@launch
-                }
-
-                val userId = user.uid
-                Log.d(TAG, "Current user ID: $userId")
-
-                // Modify the snapshot listener to include metadata changes
-                db.collection("users")
+                db.collection(USERS_COLLECTION)
                     .document(userId)
-                    .collection("exercises")
-                    .snapshots(MetadataChanges.INCLUDE) // Add this parameter
+                    .collection(EXERCISES_COLLECTION)
+                    .snapshots(MetadataChanges.INCLUDE)
                     .collect { snapshot ->
-                        Log.d(TAG, "Received snapshot with ${snapshot.size()} documents")
-                        Log.d(TAG, "From cache: ${snapshot.metadata.isFromCache}")
-                        Log.d(TAG, "Has pending writes: ${snapshot.metadata.hasPendingWrites()}")
-
-                        // Process all snapshots, don't skip ones with pending writes
                         val exerciseList = snapshot.documents.mapNotNull { doc ->
                             try {
-                                Log.d(TAG, "Processing document ${doc.id}")
-                                val exercise = doc.toObject(Exercise::class.java)
-                                exercise?.copy(id = doc.id).also {
-                                    Log.d(TAG, "Mapped exercise: ${it?.name}, completed: ${it?.completed}")
-                                }
+                                doc.toObject(Exercise::class.java)?.copy(id = doc.id)
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error converting document ${doc.id}", e)
                                 null
                             }
                         }
-
-                        Log.d(TAG, "Final exercise list size: ${exerciseList.size}")
                         _exercises.value = exerciseList
                         _loading.value = false
                     }
             } catch (e: Exception) {
-                Log.e(TAG, "Error in loadExercises", e)
+                Log.e(TAG, "Error loading exercises", e)
                 _loading.value = false
             }
         }
     }
 
-
-
     fun updateExerciseStatus(exercise: Exercise, completed: Boolean) {
         viewModelScope.launch {
             try {
-                val userId = auth.currentUser?.uid ?: run {
-                    Log.e(TAG, "No user authenticated during update")
-                    return@launch
-                }
+                val userId = getCurrentUserId() ?: return@launch
 
-                Log.d(TAG, "Updating exercise ${exercise.id} completed status to $completed")
-
-                db.collection("users")
+                db.collection(USERS_COLLECTION)
                     .document(userId)
-                    .collection("exercises")
+                    .collection(EXERCISES_COLLECTION)
                     .document(exercise.id)
-                    .update("completed", completed)
-                    .addOnSuccessListener {
-                        Log.d(TAG, "Update successful for exercise ${exercise.id}")
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e(TAG, "Update failed for exercise ${exercise.id}", e)
-                    }
+                    .update(COMPLETED_FIELD, completed)
                     .await()
             } catch (e: Exception) {
-                Log.e(TAG, "Error in updateExerciseStatus", e)
+                Log.e(TAG, "Error updating exercise status", e)
+            }
+        }
+    }
+
+    private fun getCurrentUserId(): String? {
+        return auth.currentUser?.uid.also {
+            if (it == null) {
+                Log.e(TAG, "No authenticated user found")
+                _loading.value = false
             }
         }
     }

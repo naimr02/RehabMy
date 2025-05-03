@@ -24,6 +24,7 @@ fun DashboardHomeScreen(viewModel: ExerciseViewModel = viewModel()) {
     val auth = FirebaseAuth.getInstance()
     val exercises by viewModel.exercises.collectAsState()
     val loading by viewModel.loading.collectAsState()
+    var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
 
     LaunchedEffect(Unit) {
         auth.currentUser?.let {
@@ -51,18 +52,26 @@ fun DashboardHomeScreen(viewModel: ExerciseViewModel = viewModel()) {
             Spacer(modifier = Modifier.height(32.dp))
             ExercisesSection(
                 exercises = exercises,
-                onExerciseCheckedChange = { exercise, isCompleted ->
-                    viewModel.updateExerciseStatus(exercise, isCompleted)
+                onExerciseClick = { exercise ->
+                    selectedExercise = exercise
                 }
             )
         }
+    }
+
+    selectedExercise?.let { exercise ->
+        ExerciseDetailDialog(
+            exercise = exercise,
+            onDismiss = { selectedExercise = null },
+            viewModel = viewModel
+        )
     }
 }
 
 @Composable
 private fun ExercisesSection(
     exercises: List<Exercise>,
-    onExerciseCheckedChange: (Exercise, Boolean) -> Unit
+    onExerciseClick: (Exercise) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -83,9 +92,60 @@ private fun ExercisesSection(
                 items(exercises) { exercise ->
                     ExerciseItem(
                         exercise = exercise,
-                        onCheckedChange = { isChecked ->
-                            onExerciseCheckedChange(exercise, isChecked)
-                        }
+                        onClick = { onExerciseClick(exercise) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExerciseItem(exercise: Exercise, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (exercise.completed)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            else
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f).padding(end = 16.dp)
+            ) {
+                Text(
+                    text = exercise.name,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = exercise.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (exercise.repetitions > 0) {
+                    Text(
+                        text = "${exercise.repetitions} repetitions",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            if (exercise.completed) {
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Text(
+                        text = "Completed",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -95,6 +155,7 @@ private fun ExercisesSection(
 
 @Composable
 fun ProgressSection(exercises: List<Exercise>) {
+    // No changes needed for this function
     val completedCount = exercises.count { it.completed }
     val totalCount = exercises.size.coerceAtLeast(1)
     val percentage = (completedCount.toFloat() / totalCount) * 100f
@@ -134,51 +195,6 @@ fun ProgressSection(exercises: List<Exercise>) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-fun ExerciseItem(exercise: Exercise, onCheckedChange: (Boolean) -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(
-                modifier = Modifier.weight(1f).padding(end = 16.dp)
-            ) {
-                Text(
-                    text = exercise.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = exercise.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (exercise.repetitions > 0) {
-                    Text(
-                        text = "${exercise.repetitions} repetitions",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            Checkbox(
-                checked = exercise.completed,
-                onCheckedChange = onCheckedChange,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = MaterialTheme.colorScheme.primary,
-                    uncheckedColor = MaterialTheme.colorScheme.outline
-                )
             )
         }
     }

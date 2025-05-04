@@ -64,23 +64,6 @@ class ExerciseViewModel : ViewModel() {
         }
     }
 
-    fun updateExerciseStatus(exercise: Exercise, completed: Boolean) {
-        viewModelScope.launch {
-            try {
-                val userId = getCurrentUserId() ?: return@launch
-
-                db.collection(USERS_COLLECTION)
-                    .document(userId)
-                    .collection(EXERCISES_COLLECTION)
-                    .document(exercise.id)
-                    .update(COMPLETED_FIELD, completed)
-                    .await()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error updating exercise status", e)
-            }
-        }
-    }
-
     fun uploadVideoAndCompleteExercise(exerciseId: String, videoUri: Uri, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {

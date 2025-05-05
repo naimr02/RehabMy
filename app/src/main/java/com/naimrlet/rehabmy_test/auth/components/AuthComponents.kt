@@ -2,6 +2,9 @@ package com.naimrlet.rehabmy_test.auth.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -10,27 +13,68 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.naimrlet.rehabmy_test.ui.theme.DarkModeViewModel
 
 @Composable
 fun AuthScaffold(
     title: String,
     subtitle: String,
+    darkModeViewModel: DarkModeViewModel,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    // Wrap everything in a Surface to properly apply the background color
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Text(text = title, style = MaterialTheme.typography.displaySmall)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Theme toggle button in the top right
+            ThemeToggleButton(
+                darkModeViewModel = darkModeViewModel,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+            )
+
+            // Main content
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+fun ThemeToggleButton(
+    darkModeViewModel: DarkModeViewModel,
+    modifier: Modifier = Modifier
+) {
+    IconButton(
+        onClick = { darkModeViewModel.toggleTheme() },
+        modifier = modifier
+    ) {
+        Icon(
+            imageVector = if (darkModeViewModel.isDarkThemeEnabled)
+                Icons.Default.LightMode else Icons.Default.DarkMode,
+            contentDescription = "Toggle theme",
+            tint = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(32.dp))
-        content()
     }
 }
 
@@ -128,3 +172,4 @@ fun AuthToggleRow(question: String, actionText: String, onActionClick: () -> Uni
         }
     }
 }
+

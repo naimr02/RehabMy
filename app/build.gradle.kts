@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.accompanist.permissions)
     implementation(libs.firebase.storage.ktx)
+    implementation(libs.accompanist.systemuicontroller)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

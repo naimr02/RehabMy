@@ -8,11 +8,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.naimrlet.rehabmy_test.auth.components.*
+import com.naimrlet.rehabmy_test.ui.theme.DarkModeViewModel
 
 @Composable
 fun SignUpScreen(
     onSignUpSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    darkModeViewModel: DarkModeViewModel,
     viewModel: SignUpViewModel = viewModel()
 ) {
     if (viewModel.isSignedUp) {
@@ -22,7 +24,8 @@ fun SignUpScreen(
 
     AuthScaffold(
         title = "Create Account",
-        subtitle = "Join our community"
+        subtitle = "Join our community",
+        darkModeViewModel = darkModeViewModel
     ) {
         NameField(
             value = viewModel.name,

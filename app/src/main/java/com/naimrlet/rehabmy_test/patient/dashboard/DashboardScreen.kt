@@ -30,6 +30,9 @@ import com.naimrlet.rehabmy_test.patient.dashboard.home.DashboardHomeScreen
 import com.naimrlet.rehabmy_test.patient.therapist.TherapistScreen
 import com.naimrlet.rehabmy_test.ui.theme.DarkModeViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.outlined.Book
+import com.naimrlet.rehabmy_test.patient.library.LibraryScreen
 
 sealed class DashboardDestination(
     val route: String,
@@ -49,6 +52,12 @@ sealed class DashboardDestination(
         selectedIcon = Icons.Filled.Home,
         unselectedIcon = Icons.Outlined.Home
     )
+    data object Library : DashboardDestination(
+        route = "library",
+        title = "Library",
+        selectedIcon = Icons.Filled.Book,
+        unselectedIcon = Icons.Outlined.Book
+    )
     data object About : DashboardDestination(
         route = "about",
         title = "About",
@@ -56,7 +65,7 @@ sealed class DashboardDestination(
         unselectedIcon = Icons.Outlined.Info
     )
     companion object {
-        val items = listOf(Therapist, Home, About)
+        val items = listOf(Therapist, Home, Library, About)
     }
 }
 
@@ -142,6 +151,7 @@ fun PatientDashboardScreen(
             ) {
                 composable(DashboardDestination.Therapist.route) { TherapistScreen() }
                 composable(DashboardDestination.Home.route) { DashboardHomeScreen() }
+                composable(DashboardDestination.Library.route) { LibraryScreen() }
                 composable(DashboardDestination.About.route) { AboutScreen() }
             }
         }

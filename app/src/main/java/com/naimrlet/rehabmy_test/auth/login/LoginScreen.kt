@@ -12,16 +12,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.naimrlet.rehabmy_test.auth.components.*
+import com.naimrlet.rehabmy_test.ui.theme.DarkModeViewModel
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToSignUp: () -> Unit,
+    darkModeViewModel: DarkModeViewModel,
     viewModel: LoginViewModel = viewModel()
 ) {
     AuthScaffold(
         title = "Welcome",
-        subtitle = "Sign in to continue"
+        subtitle = "Sign in to continue",
+        darkModeViewModel = darkModeViewModel
     ) {
         EmailField(
             value = viewModel.email,

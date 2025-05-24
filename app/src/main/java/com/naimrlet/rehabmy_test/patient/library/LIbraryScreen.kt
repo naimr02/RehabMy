@@ -26,6 +26,7 @@ import java.util.Locale
 
 @Composable
 fun LibraryScreen(viewModel: LibraryViewModel = viewModel()) {
+
     val loading by viewModel.loading.collectAsState()
     val selectedBodyPart by viewModel.selectedBodyPart.collectAsState()
     var selectedExercise by remember { mutableStateOf<LibraryExercise?>(null) }

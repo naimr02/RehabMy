@@ -56,11 +56,12 @@ class LibraryViewModel : ViewModel() {
 
                                 val exercisesForBodyPart = snapshot.documents.mapNotNull { doc ->
                                     try {
+                                        // Each document represents an exercise at path /library/exercises/[bodyPart]/[DocID]
                                         val exercise = doc.toObject(LibraryExercise::class.java)?.copy(
                                             id = doc.id,
                                             bodyPart = bodyPart
                                         )
-                                        Log.d("LibraryViewModel", "Parsed exercise: ${exercise?.name} for $bodyPartName")
+                                        Log.d("LibraryViewModel", "Parsed exercise: ${exercise?.name} with ID: ${doc.id} for $bodyPartName")
                                         exercise
                                     } catch (e: Exception) {
                                         Log.e("LibraryViewModel", "Error converting document ${doc.id} for $bodyPartName", e)

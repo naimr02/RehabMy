@@ -93,7 +93,6 @@ fun BodyPartCategoriesScreen(onBodyPartClick: (BodyPart) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BodyPartCard(bodyPart: BodyPart, onClick: () -> Unit) {
     Card(
@@ -181,7 +180,6 @@ fun BodyPartExercisesScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseItem(exercise: LibraryExercise, onClick: () -> Unit) {
     Card(

@@ -1,8 +1,22 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+}
+
+fun getApiKeyFromProperties(): String {
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localProperties.load(FileInputStream(localPropertiesFile))
+        return localProperties.getProperty("gemini.api.key", "")
+    }
+    println("local.properties not found or gemini.api.key not set.") // Added for debugging
+    return ""
 }
 
 android {
@@ -26,6 +40,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "GEMINI_API_KEY", "\"${getApiKeyFromProperties()}\"")
+        }
+        debug {
+            buildConfigField("String", "GEMINI_API_KEY", "\"${getApiKeyFromProperties()}\"")
         }
     }
     compileOptions {
@@ -37,6 +55,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -62,6 +81,7 @@ dependencies {
     implementation(libs.accompanist.permissions)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.accompanist.systemuicontroller)
+    implementation(libs.generativeai)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

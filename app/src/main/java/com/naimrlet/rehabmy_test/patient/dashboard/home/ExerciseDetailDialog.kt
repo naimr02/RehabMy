@@ -1,21 +1,11 @@
 package com.naimrlet.rehabmy_test.patient.dashboard.home
 
-import android.Manifest
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
-import android.provider.Settings
 import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,17 +13,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.naimrlet.rehabmy_test.model.Exercise
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
 private const val TAG = "ExerciseDetailDialog"
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseDetailDialog(
     exercise: Exercise,
@@ -41,85 +27,12 @@ fun ExerciseDetailDialog(
     viewModel: ExerciseViewModel
 ) {
     val context = LocalContext.current
-    var videoUri by remember { mutableStateOf<Uri?>(null) }
-    val uploadProgress by viewModel.uploadProgress.collectAsState()
-    val isUploading by viewModel.isUploading.collectAsState()
+    val submitting by viewModel.isUploading.collectAsState()
     val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-
-    // Create a temporary file for camera recording
-    val tmpVideoFile = remember {
-        File(
-            context.cacheDir,
-            "video_${System.currentTimeMillis()}.mp4"
-        ).apply {
-            createNewFile()
-        }
-    }
-    val videoUriForCamera = remember {
-        FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            tmpVideoFile
-        )
-    }
-
-    // Define needed permissions based on Android version
-    val permissionsList = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            listOf(
-                Manifest.permission.CAMERA,
-                Manifest.permission.READ_MEDIA_VIDEO
-            )
-        } else {
-            listOf(
-                Manifest.permission.CAMERA,
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            )
-        }
-    }
-
-    val permissionsState = rememberMultiplePermissionsState(
-        permissions = permissionsList
-    )
-
-    // Camera launch result handling
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
-            // Check both the data and pre-defined URI
-            val resultUri = result.data?.data
-            videoUri = resultUri ?: videoUriForCamera
-            Log.d(TAG, "Video captured: ${videoUri?.toString() ?: "null"}")
-        } else {
-            Log.d(TAG, "Camera canceled or failed")
-        }
-    }
-
-    // Gallery launch result handling
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            videoUri = it
-            Log.d(TAG, "Video selected from gallery: $uri")
-        } ?: run {
-            Log.d(TAG, "Gallery selection canceled or failed")
-        }
-    }
-
-    // Request permission launcher
-    rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.values.all { it }
-        if (allGranted) {
-            Log.d(TAG, "All permissions granted")
-        } else {
-            Log.d(TAG, "Some permissions denied")
-        }
-    }
+    
+    // New state variables for pain level and comments
+    var painLevel by remember { mutableStateOf(1) }
+    var comments by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -292,142 +205,122 @@ fun ExerciseDetailDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                if (videoUri == null) {
-                    if (!exercise.completed) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            FilledTonalButton(
-                                onClick = {
-                                    // Request permissions if needed
-                                    if (permissionsState.allPermissionsGranted) {
-                                        try {
-                                            val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
-                                                putExtra(MediaStore.EXTRA_OUTPUT, videoUriForCamera)
-                                                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                                            }
-                                            cameraLauncher.launch(intent)
-                                        } catch (e: Exception) {
-                                            Log.e(TAG, "Error launching camera", e)
-                                        }
-                                    } else {
-                                        // Request permissions
-                                        permissionsState.launchMultiplePermissionRequest()
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.VideoFile,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                                Text("Record Video")
-                            }
-
-                            FilledTonalButton(
-                                onClick = {
-                                    if (permissionsState.allPermissionsGranted) {
-                                        galleryLauncher.launch("video/*")
-                                    } else {
-                                        permissionsState.launchMultiplePermissionRequest()
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Upload,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                                Text("Upload Video")
-                            }
-                        }
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Video Selected",
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        if (isUploading) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                LinearProgressIndicator(
-                                    progress = { uploadProgress },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                                Text(
-                                    text = "Uploading... ${(uploadProgress * 100).toInt()}%",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        } else {
-                            Button(
-                                onClick = {
-                                    videoUri?.let { uri ->
-                                        viewModel.uploadVideoAndCompleteExercise(
-                                            exerciseId = exercise.id,
-                                            videoUri = uri
-                                        ) { success ->
-                                            if (success) {
-                                                onDismiss()
-                                            }
-                                        }
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp)
-                            ) {
-                                Text("Upload and Complete")
-                            }
-
-                            TextButton(
-                                onClick = { videoUri = null },
-                                modifier = Modifier.padding(8.dp)
-                            ) {
-                                Text("Cancel Selection")
-                            }
-                        }
-                    }
-                }
-
-                if (!permissionsState.allPermissionsGranted && !exercise.completed) {
-                    Column(
+                if (!exercise.completed) {
+                    // Pain Level Rating
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(vertical = 8.dp)
                     ) {
-                        Text(
-                            text = "Camera and storage permissions are required to upload videos",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.error
-                        )
-
-                        TextButton(
-                            onClick = {
-                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                    data = Uri.fromParts("package", context.packageName, null)
-                                }
-                                context.startActivity(intent)
-                            }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.Start
                         ) {
-                            Text("Open Settings")
+                            Text(
+                                text = "Pain Level (1-5)",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                for (i in 1..5) {
+                                    OutlinedButton(
+                                        onClick = { painLevel = i },
+                                        modifier = Modifier.padding(4.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            containerColor = if (painLevel == i) 
+                                                MaterialTheme.colorScheme.primaryContainer 
+                                            else 
+                                                MaterialTheme.colorScheme.surface
+                                        )
+                                    ) {
+                                        Text(i.toString())
+                                    }
+                                }
+                            }
+                            
+                            Text(
+                                text = when (painLevel) {
+                                    1 -> "No pain"
+                                    2 -> "Mild pain"
+                                    3 -> "Moderate pain"
+                                    4 -> "Severe pain"
+                                    5 -> "Extreme pain"
+                                    else -> ""
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                    }
+                    
+                    // Comments Field
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Comments",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            
+                            OutlinedTextField(
+                                value = comments,
+                                onValueChange = { comments = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("Add any notes about your experience") },
+                                minLines = 3
+                            )
+                        }
+                    }
+                    
+                    // Submit Button
+                    if (submitting) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Submitting...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                viewModel.completeExerciseWithFeedback(
+                                    exerciseId = exercise.id,
+                                    painLevel = painLevel,
+                                    comments = comments
+                                ) { success ->
+                                    if (success) {
+                                        onDismiss()
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp)
+                        ) {
+                            Text("Complete Exercise")
                         }
                     }
                 }

@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+    id("org.jetbrains.kotlin.kapt")
+    id("com.google.dagger.hilt.android") // Add Hilt plugin
 }
 
 fun getApiKeyFromProperties(): String {
@@ -25,7 +27,7 @@ android {
 
     defaultConfig {
         applicationId = "com.naimrlet.rehabmy_test"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -57,6 +59,12 @@ android {
         compose = true
         buildConfig = true
     }
+
+    packaging {
+        resources {
+            excludes.add("META-INF/gradle/incremental.annotation.processors")
+        }
+    }
 }
 
 dependencies {
@@ -82,6 +90,16 @@ dependencies {
     implementation(libs.firebase.storage.ktx)
     implementation(libs.accompanist.systemuicontroller)
     implementation(libs.generativeai)
+    implementation(libs.firebase.inappmessaging.ktx)
+    implementation(libs.androidx.espresso.core)
+    implementation(libs.hilt.android.v248)
+    implementation(libs.accompanist.swiperefresh)
+    kapt(libs.hilt.android.compiler.v248)
+    implementation(libs.androidx.hilt.navigation.compose.v100)
+    implementation(libs.coil.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0") // Add charting library
+    implementation("co.yml:ycharts:2.1.0") // Modern Compose charting library
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -89,4 +107,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+kapt {
+    correctErrorTypes = true
 }

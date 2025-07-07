@@ -27,6 +27,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,8 +40,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -47,6 +51,28 @@ fun ExerciseManagementScreen(
     patient: PatientInfo,
     onDismiss: () -> Unit
 ) {
+    // Initialize the view model with the patient ID
+    val viewModel: ExerciseViewModel = viewModel(
+        factory = ExerciseViewModel.Factory(patient.id)
+    )
+    
+    // Get the exercises from the view model
+    val exercises by viewModel.exercises.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+    
+    // Load exercises when screen is shown
+    LaunchedEffect(patient.id) {
+        viewModel.loadExercises()
+    }
+    
+    // Show error if any
+    error?.let {
+        LaunchedEffect(it) {
+            // Handle error, perhaps show a toast or snackbar
+        }
+    }
+    
     // Get current date
     val today = remember { Calendar.getInstance() }
     // Track selected date
@@ -54,10 +80,12 @@ fun ExerciseManagementScreen(
     // Track current visible month
     var currentMonth by remember { mutableIntStateOf(today.get(Calendar.MONTH)) }
     var currentYear by remember { mutableIntStateOf(today.get(Calendar.YEAR)) }
-
+    // State to show add exercise dialog
+    var showAddExerciseDialog by remember { mutableStateOf(false) }
+    
     // Group exercises by due date
-    val exercisesByDate = remember(patient.assignedExercises, selectedDate) {
-        patient.assignedExercises.groupBy { exercise ->
+    val exercisesByDate = remember(exercises, selectedDate) {
+        exercises.groupBy { exercise ->
             // Convert each exercise due date to a Calendar for comparison
             val exerciseCalendar = Calendar.getInstance().apply {
                 if (exercise.dueDate != null) {
@@ -283,7 +311,16 @@ fun ExerciseManagementScreen(
                 LazyColumn(
                     modifier = Modifier.height(200.dp)
                 ) {
-                    if (exercisesForSelectedDate.isEmpty()) {
+                    if (isLoading) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                androidx.compose.material3.CircularProgressIndicator()
+                            }
+                        }
+                    } else if (exercisesForSelectedDate.isEmpty()) {
                         item {
                             Text(
                                 text = "No exercises due on this date",
@@ -308,7 +345,7 @@ fun ExerciseManagementScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { /* Add exercise functionality */ },
+                    onClick = { showAddExerciseDialog = true },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Add Exercise")
@@ -320,5 +357,49 @@ fun ExerciseManagementScreen(
                 Text("Close")
             }
         }
+    )
+    
+    // Show add exercise dialog when button is clicked
+    if (showAddExerciseDialog) {
+        CalendarAddExerciseDialog(
+            patient = patient,
+            assignedDate = selectedDate,
+            onDismiss = { showAddExerciseDialog = false },
+            onExerciseAdded = { newExercise ->
+                // Reload exercises from ViewModel
+                viewModel.loadExercises()
+            }
+        )
+    }
+}
+
+@Composable
+fun CalendarAddExerciseDialog(
+    patient: PatientInfo,
+    assignedDate: Date,
+    onDismiss: () -> Unit,
+    onExerciseAdded: (ExerciseInfo) -> Unit
+) {
+    // Reuse the AssignExerciseDialog with modifications for the calendar context
+    AssignExerciseDialog(
+        patients = listOf(patient), // We only need the current patient
+        assignedDate = assignedDate, // Use the selected date from the calendar
+        onDismiss = onDismiss,
+        onAssignSuccess = { exerciseId, exerciseName, exerciseData ->
+            // Create a new ExerciseInfo object from the data
+            val newExercise = ExerciseInfo(
+                id = exerciseId,
+                name = exerciseName,
+                description = exerciseData["description"] as? String ?: "",
+                duration = (exerciseData["duration"] as? Number)?.toInt() ?: 0,
+                frequency = exerciseData["frequency"] as? String ?: "Daily",
+                dueDate = exerciseData["dueDate"] as? Date,
+                completed = false
+            )
+            
+            // Notify parent component about the new exercise
+            onExerciseAdded(newExercise)
+        },
+        preSelectedPatientId = patient.id // Pre-select the patient
     )
 }

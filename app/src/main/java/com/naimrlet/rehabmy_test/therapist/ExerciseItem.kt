@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,28 +53,36 @@ fun ExerciseItem(exercise: ExerciseInfo) {
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Text(
-                text = "Completion:",
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            LinearProgressIndicator(
-                progress = { exercise.completion },
-                modifier = Modifier.width(80.dp),
-            )
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            Text(
-                text = "${(exercise.completion * 100).toInt()}%",
-                style = MaterialTheme.typography.bodySmall
-            )
+            // Show completion status with icon and text
+            if (exercise.completed) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Completed",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Completed",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Not completed",
+                    tint = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Not completed",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
         }
 
         // Display patient feedback if available
-        if (exercise.completion > 0 && exercise.painLevel > 0) {
+        if (exercise.completed && exercise.painLevel > 0) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Patient reported pain level: ${exercise.painLevel}/5",

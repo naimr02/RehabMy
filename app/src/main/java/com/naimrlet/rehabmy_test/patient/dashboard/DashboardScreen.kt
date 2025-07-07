@@ -3,10 +3,14 @@ package com.naimrlet.rehabmy_test.patient.dashboard
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Person
@@ -27,12 +31,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.naimrlet.rehabmy_test.R
 import com.naimrlet.rehabmy_test.patient.about.AboutScreen
 import com.naimrlet.rehabmy_test.patient.dashboard.home.DashboardHomeScreen
+import com.naimrlet.rehabmy_test.patient.library.LibraryScreen
 import com.naimrlet.rehabmy_test.patient.therapist.TherapistScreen
 import com.naimrlet.rehabmy_test.ui.theme.DarkModeViewModel
 import kotlinx.coroutines.launch
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.outlined.Book
-import com.naimrlet.rehabmy_test.patient.library.LibraryScreen
 
 sealed class DashboardDestination(
     val route: String,
@@ -58,14 +60,14 @@ sealed class DashboardDestination(
         selectedIcon = Icons.Filled.Book,
         unselectedIcon = Icons.Outlined.Book
     )
-    data object About : DashboardDestination(
+    data object Progress : DashboardDestination(
         route = "about",
-        title = "About",
-        selectedIcon = Icons.Filled.Info,
-        unselectedIcon = Icons.Outlined.Info
+        title = "Progress",
+        selectedIcon = Icons.Filled.TrendingUp,
+        unselectedIcon = Icons.AutoMirrored.Outlined.TrendingUp
     )
     companion object {
-        val items = listOf(Therapist, Home, Library, About)
+        val items = listOf(Therapist, Home, Library, Progress)
     }
 }
 
@@ -152,7 +154,7 @@ fun PatientDashboardScreen(
                 composable(DashboardDestination.Therapist.route) { TherapistScreen() }
                 composable(DashboardDestination.Home.route) { DashboardHomeScreen() }
                 composable(DashboardDestination.Library.route) { LibraryScreen() }
-                composable(DashboardDestination.About.route) { AboutScreen() }
+                composable(DashboardDestination.Progress.route) { AboutScreen() }
             }
         }
     }

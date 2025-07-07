@@ -13,7 +13,9 @@ import com.naimrlet.rehabmy_test.auth.AuthViewModel
 import com.naimrlet.rehabmy_test.navigation.AppNavigation
 import com.naimrlet.rehabmy_test.ui.theme.AppTheme
 import com.naimrlet.rehabmy_test.ui.theme.DarkModeViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
     private val darkModeViewModel: DarkModeViewModel by viewModels()
@@ -70,3 +72,4 @@ private fun android.content.Context.getActivity(): ComponentActivity? {
     }
     return null
 }
+

@@ -12,14 +12,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,10 +40,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.generationConfig
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.naimrlet.rehabmy_test.therapist.chat.rememberTherapistChatNavigationActions
+import com.naimrlet.rehabmy_test.therapist.service.TherapistPatientService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -50,12 +57,13 @@ data class PatientInfo(
     val name: String,
     val age: Int,
     val condition: String,
-    val progress: Float, // 0.0 to 1.0
+    val completedExercises: Int = 0, // Instead of progress float
+    val totalExercises: Int = 0,     // Add total exercises
     val assignedExercises: List<ExerciseInfo> = emptyList()
 )
 
 // Gemini API client setup
-private lateinit var geminiModel: GenerativeModel
+lateinit var geminiModel: GenerativeModel
 const val TAG = "TherapistScreen" // Define a TAG for logging
 
 // Initialize Gemini API with your API key
@@ -91,12 +99,12 @@ suspend fun generateExerciseFeedback(patient: PatientInfo): String {
 
         // Create a more concise prompt
         val prompt = buildString {
-            append("As a PT assistant, briefly analyze: Patient ${patient.name}, ${patient.age}y, ${patient.condition}, Progress: ${(patient.progress * 100).toInt()}%\n\n")
+            append("As a PT assistant, briefly analyze: Patient ${patient.name}, ${patient.age}y, ${patient.condition}, Completed: ${patient.completedExercises}/${patient.totalExercises} exercises\n\n")
 
             if (patient.assignedExercises.isNotEmpty()) {
                 append("Exercises:\n")
                 patient.assignedExercises.forEach { exercise ->
-                    append("- ${exercise.name}: ${exercise.duration}min, ${exercise.frequency}, ${(exercise.completion * 100).toInt()}% complete\n")
+                    append("- ${exercise.name}: ${exercise.duration}min, ${exercise.frequency}, ${if (exercise.completed) "completed" else "not completed"}\n")
                 }
             } else {
                 append("No exercises assigned yet.\n")
@@ -127,7 +135,7 @@ suspend fun generateExerciseFeedback(patient: PatientInfo): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TherapistScreen(
-    navController: NavController,
+    navController: NavHostController,
     onLogout: () -> Unit,
     geminiApiKey: String = "" // Add parameter for API key
 ) {
@@ -142,104 +150,65 @@ fun TherapistScreen(
         }
     }
 
+    // Use the new simplified patient service
+    val patientService = remember {
+        TherapistPatientService(
+            FirebaseFirestore.getInstance(),
+            FirebaseAuth.getInstance()
+        )
+    }
+
     // State for patients
     val patients = remember { mutableStateListOf<PatientInfo>() }
     var isLoading by remember { mutableStateOf(true) }
     var selectedPatient by remember { mutableStateOf<PatientInfo?>(null) }
     var showAssignDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    // Navigation state
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("Patients", "Chat")
 
-    // Fetch data from Firebase Firestore
+    // Create navigation actions for therapist chat
+    val chatNavigationActions = rememberTherapistChatNavigationActions(navController)
+
+    // Fetch data using the new simplified service
     LaunchedEffect(key1 = Unit) {
         try {
-            val currentUser = FirebaseAuth.getInstance().currentUser
-            if (currentUser == null) {
-                errorMessage = "User not authenticated"
-                isLoading = false
-                return@LaunchedEffect
-            }
+            isLoading = true
+            errorMessage = null
 
-            val currentUserId = currentUser.uid
-            val db = FirebaseFirestore.getInstance()
+            Log.d(TAG, "Loading patients using simplified service...")
 
-            // Fetch therapist document to get assigned patients
-            val therapistDoc = withContext(Dispatchers.IO) {
-                db.collection("users").document(currentUserId).get().await()
-            }
-
-            // Get assigned patient IDs from the assignedPatient field (array)
-            val assignedPatientIds = therapistDoc.get("assignedPatient") as? List<String> ?: emptyList()
-
-            if (assignedPatientIds.isEmpty()) {
-                isLoading = false
-                return@LaunchedEffect
-            }
-
-            // Fetch data for each assigned patient
-            assignedPatientIds.forEach { patientId ->
-                try {
-                    // Get patient profile data
-                    val patientDoc = withContext(Dispatchers.IO) {
-                        db.collection("users").document(patientId).get().await()
-                    }
-
-                    if (!patientDoc.exists()) return@forEach
-
-                    // Get patient exercises
-                    val exercisesSnapshot = withContext(Dispatchers.IO) {
-                        db.collection("users")
-                            .document(patientId)
-                            .collection("exercises")
-                            .get().await()
-                    }
-
-                    // Map exercises to ExerciseInfo objects
-                    val exercises = exercisesSnapshot.documents.mapNotNull { doc ->
-                        try {
-                            ExerciseInfo(
-                                id = doc.id,
-                                name = doc.getString("name") ?: return@mapNotNull null,
-                                description = doc.getString("description") ?: "",
-                                duration = doc.getLong("duration")?.toInt() ?: 0,
-                                frequency = doc.getString("frequency") ?: "Daily",
-                                completion = doc.getDouble("completion")?.toFloat() ?: 0f,
-                                painLevel = doc.getLong("painLevel")?.toInt() ?: 0,
-                                comments = doc.getString("comments") ?: "",
-                                dueDate = doc.getDate("dueDate") // Fetch dueDate
-                            )
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-
-                    // Calculate overall progress based on exercise completion
-                    val averageProgress = if (exercises.isNotEmpty()) {
-                        exercises.map { it.completion }.average().toFloat()
-                    } else {
-                        0f
-                    }
-
-                    // Create PatientInfo object and add to list
-                    val patient = PatientInfo(
-                        id = patientId,
-                        name = patientDoc.getString("name") ?: "Unknown",
-                        age = patientDoc.getLong("age")?.toInt() ?: 0,
-                        condition = patientDoc.getString("condition") ?: "Not specified",
-                        progress = averageProgress,
-                        assignedExercises = exercises
-                    )
-
-                    patients.add(patient)
-                } catch (e: Exception) {
-                    println("Error fetching patient $patientId: ${e.message}")
+            val result = patientService.getAssignedPatients()
+            result.fold(
+                onSuccess = { patientList ->
+                    Log.d(TAG, "Successfully loaded ${patientList.size} patients")
+                    patients.clear()
+                    patients.addAll(patientList)
+                    isLoading = false
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "Error loading patients: ${error.message}", error)
+                    errorMessage = "Error loading data: ${error.message}"
+                    isLoading = false
                 }
-            }
-
-            isLoading = false
+            )
         } catch (e: Exception) {
-            errorMessage = "Error loading data: ${e.message}"
+            Log.e(TAG, "Exception in LaunchedEffect: ${e.message}", e)
+            errorMessage = "Error: ${e.message}"
             isLoading = false
         }
+    }
+
+    // Check if we should show patient details screen
+    selectedPatient?.let { patient ->
+        PatientDetailsScreen(
+            patient = patient,
+            onNavigateBack = { selectedPatient = null },
+            geminiApiKey = geminiApiKey
+        )
+        return // Return early to show only the patient details screen
     }
 
     Scaffold(
@@ -256,12 +225,38 @@ fun TherapistScreen(
                 }
             )
         },
+        bottomBar = {
+            NavigationBar {
+                tabs.forEachIndexed { index, title ->
+                    NavigationBarItem(
+                        icon = { 
+                            Icon(
+                                imageVector = if (index == 0) Icons.Default.Person else Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = title
+                            )
+                        },
+                        label = { Text(title) },
+                        selected = selectedTab == index,
+                        onClick = { 
+                            if (index == 1) {
+                                // Fix: Use the navigation actions instead of direct navigation
+                                chatNavigationActions.navigateToTherapistChat()
+                            } else {
+                                selectedTab = index
+                            }
+                        }
+                    )
+                }
+            }
+        },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showAssignDialog = true },
-                icon = { Icon(Icons.Default.Add, "Assign Exercise") },
-                text = { Text("Assign Exercise") }
-            )
+            if (selectedTab == 0) {
+                ExtendedFloatingActionButton(
+                    onClick = { showAssignDialog = true },
+                    icon = { Icon(Icons.Default.Add, "Assign Exercise") },
+                    text = { Text("Assign Exercise") }
+                )
+            }
         }
     ) { paddingValues ->
         Surface(
@@ -326,16 +321,6 @@ fun TherapistScreen(
         }
     }
 
-    // Dialog to show patient details with AI feedback
-    if (selectedPatient != null) {
-        Log.d(TAG, "Opening PatientDetailsDialog with API key length: ${geminiApiKey.length}")
-        PatientDetailsDialog(
-            patient = selectedPatient!!,
-            onDismiss = { selectedPatient = null },
-            geminiApiKey = geminiApiKey // Ensure this is passed correctly
-        )
-    }
-
     // Dialog to assign exercises
     if (showAssignDialog) {
         AssignExerciseDialog(
@@ -369,17 +354,28 @@ private fun addExerciseToPatient(
         "description" to description,
         "duration" to duration,
         "frequency" to frequency,
-        "completion" to 0.0,
+        "completed" to false,
         "assignedBy" to currentUserId,
         "assignedDate" to com.google.firebase.Timestamp.now()
     )
 
-    // Add to Firestore
+    // Add to Firestore - path: [default]/users/(patientId)/exercises/
     db.collection("users").document(patientId)
         .collection("exercises")
         .add(exerciseData)
         .addOnSuccessListener { documentReference ->
-            onSuccess(documentReference.id)
+            // Also update the assignedPatient array to include the therapist
+            // Path: [default]/users/(patientId)
+            db.collection("users").document(patientId)
+                .update("assignedPatient", com.google.firebase.firestore.FieldValue.arrayUnion(currentUserId))
+                .addOnSuccessListener {
+                    onSuccess(documentReference.id)
+                }
+                .addOnFailureListener { e ->
+                    // Still consider it a success if exercise was added
+                    onSuccess(documentReference.id)
+                    Log.w(TAG, "Warning: Could not update assignedPatient array: ${e.message}")
+                }
         }
         .addOnFailureListener { e ->
             onError(e.message ?: "Unknown error")

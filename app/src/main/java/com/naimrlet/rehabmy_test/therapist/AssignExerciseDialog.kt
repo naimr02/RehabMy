@@ -31,10 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import android.util.Log
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,54 +44,86 @@ fun AssignExerciseDialog(
     patients: List<PatientInfo>,
     assignedDate: Date = Date(), // Default to current date if not specified
     onDismiss: () -> Unit,
-    onAssignSuccess: () -> Unit = {} // Optional callback for successful assignment
+    onAssignSuccess: (exerciseId: String, exerciseName: String, exerciseData: Map<String, Any>) -> Unit = { _, _, _ -> }, // Updated callback
+    preSelectedPatientId: String = "" // New parameter to pre-select a patient
 ) {
-    var selectedPatientId by remember { mutableStateOf("") }
+    var selectedPatientId by remember { mutableStateOf(preSelectedPatientId) }
     var exerciseName by remember { mutableStateOf("") }
     var exerciseDescription by remember { mutableStateOf("") }
     var exerciseDuration by remember { mutableStateOf("10") }
     var exerciseFrequency by remember { mutableStateOf("Daily") }
     var expanded by remember { mutableStateOf(false) }
     
-    // Date picker states
-    var showDatePicker by remember { mutableStateOf(false) }
-    var selectedAssignedDate by remember { mutableStateOf(assignedDate) }
+    // Date range picker states
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    var selectedStartDate by remember { mutableStateOf(assignedDate) }
+    var selectedEndDate by remember { mutableStateOf(assignedDate) }
     val dateFormat = SimpleDateFormat("EEE, MMM d, yyyy", Locale.getDefault())
     
-    // Calculate due date (assigned date at 11:59 PM)
-    val calendar = Calendar.getInstance()
-    calendar.time = selectedAssignedDate
-    calendar.set(Calendar.HOUR_OF_DAY, 23)
-    calendar.set(Calendar.MINUTE, 59)
-    calendar.set(Calendar.SECOND, 59)
-    val dueDate = calendar.time
-    
-    // Date picker state and dialog
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = selectedAssignedDate.time
+    // Date picker states for both start and end dates
+    val startDatePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedStartDate.time
+    )
+
+    val endDatePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedEndDate.time
     )
     
-    if (showDatePicker) {
+    // Start date picker dialog
+    if (showStartDatePicker) {
         DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
+            onDismissRequest = { showStartDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
+                    startDatePickerState.selectedDateMillis?.let { millis ->
                         val newDate = Date(millis)
-                        selectedAssignedDate = newDate
+                        selectedStartDate = newDate
+                        // If end date is before start date, update end date to match start date
+                        if (selectedEndDate.before(newDate)) {
+                            selectedEndDate = newDate
+                        }
                     }
-                    showDatePicker = false
+                    showStartDatePicker = false
                 }) {
                     Text("Confirm")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
+                TextButton(onClick = { showStartDatePicker = false }) {
                     Text("Cancel")
                 }
             }
         ) {
-            DatePicker(state = datePickerState)
+            DatePicker(state = startDatePickerState)
+        }
+    }
+
+    // End date picker dialog
+    if (showEndDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showEndDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    endDatePickerState.selectedDateMillis?.let { millis ->
+                        val newDate = Date(millis)
+                        // Only update if end date is not before start date
+                        if (!newDate.before(selectedStartDate)) {
+                            selectedEndDate = newDate
+                        }
+                    }
+                    showEndDatePicker = false
+                }) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = endDatePickerState)
         }
     }
 
@@ -101,48 +135,60 @@ fun AssignExerciseDialog(
         title = { Text("Assign Exercise") },
         text = {
             Column {
-                // Patient selector
-                Text(
-                    text = "Select Patient",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Box {
+                // Patient selector - only show if not pre-selected
+                if (preSelectedPatientId.isEmpty()) {
                     Text(
-                        text = if (selectedPatientId.isNotEmpty()) {
-                            patients.find { it.id == selectedPatientId }?.name ?: "Select patient"
-                        } else {
-                            "Select patient"
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expanded = true }
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .padding(16.dp)
+                        text = "Select Patient",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
                     )
 
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        patients.forEach { patient ->
-                            DropdownMenuItem(
-                                text = { Text(patient.name) },
-                                onClick = {
-                                    selectedPatientId = patient.id
-                                    expanded = false
-                                }
-                            )
+                    Box {
+                        Text(
+                            text = if (selectedPatientId.isNotEmpty()) {
+                                patients.find { it.id == selectedPatientId }?.name ?: "Select patient"
+                            } else {
+                                "Select patient"
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expanded = true }
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .padding(16.dp)
+                        )
+
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            patients.forEach { patient ->
+                                DropdownMenuItem(
+                                    text = { Text(patient.name) },
+                                    onClick = {
+                                        selectedPatientId = patient.id
+                                        expanded = false
+                                    }
+                                )
+                            }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                } else {
+                    // If patient is pre-selected, just show the name
+                    val patientName = patients.find { it.id == preSelectedPatientId }?.name ?: "Selected Patient"
+                    Text(
+                        text = "Patient: $patientName",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
                 // Exercise fields
                 Text(
@@ -207,31 +253,73 @@ fun AssignExerciseDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Date selection field
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Date range selection fields
                 Text(
-                    text = "Assigned Date",
+                    text = "Exercise Date Range",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
                 
-                Text(
-                    text = dateFormat.format(selectedAssignedDate),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showDatePicker = true }
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline,
-                            shape = RoundedCornerShape(4.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    // Start date picker
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Start Date",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
                         )
-                        .padding(16.dp)
-                )
+
+                        Text(
+                            text = dateFormat.format(selectedStartDate),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showStartDatePicker = true }
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // End date picker
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "End Date",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Text(
+                            text = dateFormat.format(selectedEndDate),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showEndDatePicker = true }
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
+
+                // Calculate and show number of days
+                val daysDifference = ((selectedEndDate.time - selectedStartDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1
                 Text(
-                    text = "Exercise will be due at 11:59 PM of the assigned date",
+                    text = "Exercise will be assigned for $daysDifference day(s). Each exercise will be due at 11:59 PM of its respective day.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline
                 )
@@ -244,35 +332,91 @@ fun AssignExerciseDialog(
                     if (selectedPatientId.isNotEmpty() && exerciseName.isNotEmpty()) {
                         val duration = exerciseDuration.toIntOrNull() ?: 10
                         
-                        // Create exercise data map
-                        val exerciseData = hashMapOf(
-                            "patientId" to selectedPatientId,
-                            "name" to exerciseName,
-                            "description" to exerciseDescription,
-                            "duration" to duration,
-                            "frequency" to exerciseFrequency,
-                            "assignedDate" to selectedAssignedDate,
-                            "dueDate" to dueDate,
-                            "status" to "Assigned",
-                            "timestamp" to Date() // Add timestamp for sorting/tracking
-                        )
-                        
-                        // Save to Firestore in the patient's exercises subcollection
-                        db.collection("users")
-                            .document(selectedPatientId)
-                            .collection("exercises")
-                            .add(exerciseData)
-                            .addOnSuccessListener {
-                                // Call success callback
-                                onAssignSuccess()
-                                // Dismiss dialog
-                                onDismiss()
-                            }
-                            .addOnFailureListener { e ->
-                                // In a real app, you might want to show an error message here
-                                // For now, just dismiss the dialog
-                                onDismiss()
-                            }
+                        // Create exercises for each day in the range
+                        val calendar = Calendar.getInstance()
+                        calendar.time = selectedStartDate
+
+                        // Reset to start of day
+                        calendar.set(Calendar.HOUR_OF_DAY, 0)
+                        calendar.set(Calendar.MINUTE, 0)
+                        calendar.set(Calendar.SECOND, 0)
+                        calendar.set(Calendar.MILLISECOND, 0)
+
+                        val endCalendar = Calendar.getInstance()
+                        endCalendar.time = selectedEndDate
+                        endCalendar.set(Calendar.HOUR_OF_DAY, 0)
+                        endCalendar.set(Calendar.MINUTE, 0)
+                        endCalendar.set(Calendar.SECOND, 0)
+                        endCalendar.set(Calendar.MILLISECOND, 0)
+
+                        var exercisesCreated = 0
+                        var totalExercises = 0
+
+                        // Count total exercises to create
+                        val tempCalendar = calendar.clone() as Calendar
+                        while (!tempCalendar.time.after(endCalendar.time)) {
+                            totalExercises++
+                            tempCalendar.add(Calendar.DAY_OF_MONTH, 1)
+                        }
+
+                        // Create exercises for each day
+                        while (!calendar.time.after(endCalendar.time)) {
+                            // Create due date for this specific day (11:59 PM)
+                            val dueDateCalendar = calendar.clone() as Calendar
+                            dueDateCalendar.set(Calendar.HOUR_OF_DAY, 23)
+                            dueDateCalendar.set(Calendar.MINUTE, 59)
+                            dueDateCalendar.set(Calendar.SECOND, 59)
+                            val dueDate = dueDateCalendar.time
+
+                            // Create exercise data map for this day
+                            val exerciseData = hashMapOf(
+                                "patientId" to selectedPatientId,
+                                "name" to exerciseName,
+                                "description" to exerciseDescription,
+                                "duration" to duration,
+                                "frequency" to exerciseFrequency,
+                                "assignedDate" to calendar.time,
+                                "dueDate" to dueDate,
+                                "completed" to false,
+                                "status" to "Assigned",
+                                "timestamp" to Date()
+                            )
+
+                            // Save to Firestore
+                            db.collection("users")
+                                .document(selectedPatientId)
+                                .collection("exercises")
+                                .add(exerciseData)
+                                .addOnSuccessListener { docRef ->
+                                    exercisesCreated++
+
+                                    // If this is the first exercise created, update patient assignment
+                                    if (exercisesCreated == 1) {
+                                        updatePatientAssignmentStatus(selectedPatientId)
+                                    }
+
+                                    // Call success callback for the first exercise
+                                    if (exercisesCreated == 1) {
+                                        onAssignSuccess(docRef.id, exerciseName, exerciseData)
+                                    }
+
+                                    // Close dialog when all exercises are created
+                                    if (exercisesCreated == totalExercises) {
+                                        onDismiss()
+                                    }
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e("AssignExercise", "Error creating exercise for ${calendar.time}: ${e.message}")
+                                    // Still count as processed to avoid hanging
+                                    exercisesCreated++
+                                    if (exercisesCreated == totalExercises) {
+                                        onDismiss()
+                                    }
+                                }
+
+                            // Move to next day
+                            calendar.add(Calendar.DAY_OF_MONTH, 1)
+                        }
                     }
                 },
                 enabled = selectedPatientId.isNotEmpty() && exerciseName.isNotEmpty()
@@ -286,4 +430,19 @@ fun AssignExerciseDialog(
             }
         }
     )
+}
+
+// Updated function to update the patient's assignment status
+private fun updatePatientAssignmentStatus(patientId: String) {
+    val db = FirebaseFirestore.getInstance()
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+    
+    // Add the therapist's ID to the assignedPatient array for this patient
+    // Path: [default]/users/(patientId) - updating the assignedPatient array field
+    db.collection("users")
+        .document(patientId)
+        .update("assignedPatient", com.google.firebase.firestore.FieldValue.arrayUnion(currentUserId))
+        .addOnFailureListener { e ->
+            Log.e("AssignExercise", "Error updating patient assignment status: ${e.message}")
+        }
 }

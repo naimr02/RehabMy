@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -22,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun PatientDetailsDialog(
@@ -41,6 +44,28 @@ fun PatientDetailsDialog(
     var aiFeedback by remember { mutableStateOf("") }
     var isLoadingFeedback by remember { mutableStateOf(false) }
     var showExerciseInterface by remember { mutableStateOf(false) }
+    
+    // Initialize the view model with the patient ID
+    val viewModel: ExerciseViewModel = viewModel(
+        factory = ExerciseViewModel.Factory(patient.id)
+    )
+    
+    // Get exercises from the view model
+    val exercises by viewModel.exercises.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+    
+    // Load exercises when screen is shown
+    LaunchedEffect(patient.id) {
+        viewModel.loadExercises()
+    }
+    
+    // Clear any error
+    LaunchedEffect(error) {
+        if (error != null) {
+            viewModel.clearError()
+        }
+    }
 
     // Only generate AI feedback when the button is clicked
     LaunchedEffect(key1 = showAiFeedback) {
@@ -48,7 +73,15 @@ fun PatientDetailsDialog(
             if (geminiApiKey.isNotEmpty()) {
                 Log.d(TAG, "PatientDetailsDialog: Generating feedback for ${patient.name}")
                 isLoadingFeedback = true
-                aiFeedback = generateExerciseFeedback(patient)
+                
+                // Create a PatientInfo with latest exercises from ViewModel
+                val updatedPatient = patient.copy(
+                    assignedExercises = exercises,
+                    totalExercises = exercises.size,
+                    completedExercises = exercises.count { it.completed }
+                )
+                
+                aiFeedback = generateExerciseFeedback(updatedPatient)
                 isLoadingFeedback = false
             } else {
                 Log.w(TAG, "PatientDetailsDialog: Gemini API key is empty. Cannot generate feedback for ${patient.name}")
@@ -122,21 +155,47 @@ fun PatientDetailsDialog(
                         fontWeight = FontWeight.Bold
                     )
 
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    // Add completion summary using data from ViewModel
+                    Text(
+                        text = if (exercises.isNotEmpty()) {
+                            "${exercises.count { it.completed }} of ${exercises.size} exercises completed"
+                        } else {
+                            "No exercises assigned yet"
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    if (patient.assignedExercises.isEmpty()) {
+                }
+                
+                // Show loading state from ViewModel
+                if (isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                } else if (exercises.isEmpty()) {
+                    item {
                         Text(
                             text = "No exercises assigned yet",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    } else {
-                        patient.assignedExercises.forEach { exercise ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            ExerciseItem(exercise = exercise)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            HorizontalDivider()
-                        }
+                    }
+                } else {
+                    items(exercises) { exercise ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ExerciseItem(exercise = exercise)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HorizontalDivider()
                     }
                 }
             }
@@ -174,7 +233,11 @@ fun PatientDetailsDialog(
     if (showExerciseInterface) {
         ExerciseManagementScreen(
             patient = patient,
-            onDismiss = { showExerciseInterface = false }
+            onDismiss = { 
+                showExerciseInterface = false
+                // Refresh exercises when coming back from exercise management
+                viewModel.loadExercises()
+            }
         )
     }
 }

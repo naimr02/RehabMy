@@ -14,6 +14,7 @@ import com.naimrlet.rehabmy_test.auth.login.LoginScreen
 import com.naimrlet.rehabmy_test.auth.signup.SignUpScreen
 import com.naimrlet.rehabmy_test.patient.dashboard.PatientDashboardScreen
 import com.naimrlet.rehabmy_test.therapist.TherapistScreen
+import com.naimrlet.rehabmy_test.therapist.chat.therapistChatGraph // Import therapistChatGraph
 import com.naimrlet.rehabmy_test.ui.theme.DarkModeViewModel
 import android.util.Log // Add this import
 
@@ -31,7 +32,7 @@ fun AppNavigation(
 ) {
     val navController = rememberNavController()
     val startDestination by remember { mutableStateOf(determineStartDestination(authViewModel)) }
-    
+
     // Effect to handle role changes
     LaunchedEffect(authViewModel.isAuthenticated, authViewModel.isTherapist) {
         if (authViewModel.isAuthenticated) {
@@ -45,13 +46,13 @@ fun AppNavigation(
             }
         }
     }
-    
+
     // Debug the BuildConfig API key directly
     LaunchedEffect(Unit) {
         Log.d("AppNavigation", "BuildConfig.GEMINI_API_KEY length: ${BuildConfig.GEMINI_API_KEY.length}")
         Log.d("AppNavigation", "First few chars of API key: ${BuildConfig.GEMINI_API_KEY.take(5)}...")
     }
-    
+
     NavHost(
         navController = navController,
         startDestination = startDestination
@@ -65,7 +66,7 @@ fun AppNavigation(
                 darkModeViewModel = darkModeViewModel
             )
         }
-        
+
         composable(AppRoute.SIGNUP) {
             SignUpScreen(
                 onSignUpSuccess = {
@@ -75,7 +76,7 @@ fun AppNavigation(
                 darkModeViewModel = darkModeViewModel
             )
         }
-        
+
         composable(AppRoute.HOME) {
             PatientDashboardScreen(
                 onLogout = {
@@ -84,7 +85,7 @@ fun AppNavigation(
                 darkModeViewModel = darkModeViewModel
             )
         }
-        
+
         composable(AppRoute.THERAPIST) {
             // Use hardcoded API key as fallback if BuildConfig value is empty
             val apiKey = if (BuildConfig.GEMINI_API_KEY.isEmpty()) {
@@ -93,7 +94,7 @@ fun AppNavigation(
             } else {
                 BuildConfig.GEMINI_API_KEY
             }
-            
+
             TherapistScreen(
                 navController = navController,
                 onLogout = {
@@ -102,6 +103,12 @@ fun AppNavigation(
                 geminiApiKey = apiKey // Use the fallback if needed
             )
         }
+        
+        // Add the therapist chat graph to the main navigation
+        therapistChatGraph(
+            navController = navController,
+            onNavigateBack = { navController.navigateUp() }
+        )
     }
 }
 
@@ -112,4 +119,3 @@ private fun determineStartDestination(authViewModel: AuthViewModel): String {
         else -> AppRoute.HOME
     }
 }
-

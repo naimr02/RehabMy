@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -34,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +50,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.naimrlet.rehabmy_test.therapist.chat.rememberTherapistChatNavigationActions
 import com.naimrlet.rehabmy_test.therapist.service.TherapistPatientService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -164,41 +167,44 @@ fun TherapistScreen(
     var selectedPatient by remember { mutableStateOf<PatientInfo?>(null) }
     var showAssignDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
+    var refreshTrigger by remember { mutableStateOf(0L) }
+
     // Navigation state
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Patients", "Chat")
+    val tabs = listOf("Patients", "Chat", "Manage Patients")
 
     // Create navigation actions for therapist chat
     val chatNavigationActions = rememberTherapistChatNavigationActions(navController)
+    val scope = rememberCoroutineScope()
+
+    // Function to refresh patients
+    val refreshPatients = {
+        scope.launch {
+            try {
+                isLoading = true
+                errorMessage = null
+                val result = patientService.getAssignedPatients()
+                result.fold(
+                    onSuccess = { patientList ->
+                        patients.clear()
+                        patients.addAll(patientList)
+                        isLoading = false
+                    },
+                    onFailure = { error ->
+                        errorMessage = "Error loading data: ${error.message}"
+                        isLoading = false
+                    }
+                )
+            } catch (e: Exception) {
+                errorMessage = "Error: ${e.message}"
+                isLoading = false
+            }
+        }
+    }
 
     // Fetch data using the new simplified service
-    LaunchedEffect(key1 = Unit) {
-        try {
-            isLoading = true
-            errorMessage = null
-
-            Log.d(TAG, "Loading patients using simplified service...")
-
-            val result = patientService.getAssignedPatients()
-            result.fold(
-                onSuccess = { patientList ->
-                    Log.d(TAG, "Successfully loaded ${patientList.size} patients")
-                    patients.clear()
-                    patients.addAll(patientList)
-                    isLoading = false
-                },
-                onFailure = { error ->
-                    Log.e(TAG, "Error loading patients: ${error.message}", error)
-                    errorMessage = "Error loading data: ${error.message}"
-                    isLoading = false
-                }
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception in LaunchedEffect: ${e.message}", e)
-            errorMessage = "Error: ${e.message}"
-            isLoading = false
-        }
+    LaunchedEffect(key1 = refreshTrigger) {
+        refreshPatients()
     }
 
     // Check if we should show patient details screen
@@ -231,7 +237,12 @@ fun TherapistScreen(
                     NavigationBarItem(
                         icon = { 
                             Icon(
-                                imageVector = if (index == 0) Icons.Default.Person else Icons.AutoMirrored.Filled.Chat,
+                                imageVector = when (index) {
+                                    0 -> Icons.Default.Person
+                                    1 -> Icons.AutoMirrored.Filled.Chat
+                                    2 -> Icons.Default.Settings
+                                    else -> Icons.Default.Person
+                                },
                                 contentDescription = title
                             )
                         },
@@ -265,57 +276,73 @@ fun TherapistScreen(
                 .padding(paddingValues),
             color = MaterialTheme.colorScheme.background
         ) {
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else if (errorMessage != null) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = errorMessage ?: "Unknown error",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = "Your Patients",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    if (patients.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+            when (selectedTab) {
+                0 -> {
+                    // Patients tab
+                    if (isLoading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (errorMessage != null) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "No patients assigned yet",
+                                text = errorMessage ?: "Unknown error",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp)
                         ) {
-                            items(patients) { patient ->
-                                PatientCard(
-                                    patient = patient,
-                                    onClick = { selectedPatient = patient }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Your Patients",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+
+                            if (patients.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No patients assigned yet",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    items(patients) { patient ->
+                                        PatientCard(
+                                            patient = patient,
+                                            onClick = { selectedPatient = patient }
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
                             }
                         }
                     }
+                }
+                2 -> {
+                    // Manage Patients tab
+                    ManagePatientsScreen(
+                        patients = patients,
+                        patientService = patientService,
+                        isLoading = isLoading,
+                        onRefreshPatients = {
+                            refreshTrigger = System.currentTimeMillis()
+                        }
+                    )
                 }
             }
         }

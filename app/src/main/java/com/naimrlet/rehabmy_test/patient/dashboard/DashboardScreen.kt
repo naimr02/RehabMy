@@ -1,26 +1,30 @@
 package com.naimrlet.rehabmy_test.patient.dashboard
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -63,7 +67,7 @@ sealed class DashboardDestination(
     data object Progress : DashboardDestination(
         route = "about",
         title = "Progress",
-        selectedIcon = Icons.Filled.TrendingUp,
+        selectedIcon = Icons.AutoMirrored.Filled.TrendingUp,
         unselectedIcon = Icons.AutoMirrored.Outlined.TrendingUp
     )
     companion object {
@@ -162,16 +166,59 @@ fun PatientDashboardScreen(
 
 @Composable
 private fun AppearanceDrawerContent(darkModeViewModel: DarkModeViewModel) {
+    val context = LocalContext.current
+    var showCopiedMessage by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
         Text(
-            text = "Appearance",
+            text = "Settings",
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
+        // Copy UID Section
+        OutlinedButton(
+            onClick = {
+                val currentUser = FirebaseAuth.getInstance().currentUser
+                currentUser?.uid?.let { uid ->
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Firebase UID", uid)
+                    clipboard.setPrimaryClip(clip)
+                    showCopiedMessage = true
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ContentCopy,
+                contentDescription = "Copy UID",
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Copy UID")
+        }
+
+        // Show copied message
+        if (showCopiedMessage) {
+            Text(
+                text = "UID copied to clipboard!",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            LaunchedEffect(showCopiedMessage) {
+                kotlinx.coroutines.delay(2000)
+                showCopiedMessage = false
+            }
+        }
+
+        // Dark Theme Section
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,

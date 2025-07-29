@@ -112,9 +112,20 @@ class ChatRepository @Inject constructor(
             return@callbackFlow
         }
 
-        // Use patientId directly as the conversation document ID
-        // Structure: conversations/{patientId}/messages
-        val conversationId = otherUserId // For therapist chat, otherUserId is the patientId
+        // Determine the patient ID correctly based on current user type
+        val conversationId = try {
+            val currentUser = getCurrentUser().getOrThrow()
+            if (currentUser.isTherapist) {
+                // Therapist viewing chat: otherUserId is the patient ID
+                otherUserId
+            } else {
+                // Patient viewing chat: currentUserId is the patient ID
+                currentUserId
+            }
+        } catch (e: Exception) {
+            close(Exception("Failed to determine conversation ID: ${e.message}"))
+            return@callbackFlow
+        }
 
         val messagesRef = firestore.collection(CONVERSATIONS_COLLECTION)
             .document(conversationId)
@@ -160,7 +171,7 @@ class ChatRepository @Inject constructor(
 
             // Always use patientId as conversation document ID, regardless of who is sending
             // For therapist: recipientId is patientId
-            // For patient: currentUserId is patientId (since patient is always the "owner" of the conversation)
+            // For patient: currentUserId is the patientId (since patient is always the "owner" of the conversation)
             val conversationId = when (senderType) {
                 UserType.THERAPIST -> recipientId // recipientId is the patientId
                 UserType.PATIENT -> currentUserId // currentUserId is the patientId
@@ -184,8 +195,19 @@ class ChatRepository @Inject constructor(
         return try {
             val currentUserId = getCurrentUserId() ?: return Result.failure(Exception("User not authenticated"))
 
-            // Use patientId directly as conversation document ID
-            val conversationId = otherUserId
+            // Determine the patient ID correctly based on current user type
+            val conversationId = try {
+                val currentUser = getCurrentUser().getOrThrow()
+                if (currentUser.isTherapist) {
+                    // Therapist viewing chat: otherUserId is the patient ID
+                    otherUserId
+                } else {
+                    // Patient viewing chat: currentUserId is the patient ID
+                    currentUserId
+                }
+            } catch (e: Exception) {
+                return Result.failure(Exception("Failed to determine conversation ID: ${e.message}"))
+            }
 
             val messagesQuery = firestore.collection(CONVERSATIONS_COLLECTION)
                 .document(conversationId)

@@ -5,7 +5,7 @@ data class LibraryExercise(
     val name: String = "",
     val description: String = "",
     val bodyPart: BodyPart = BodyPart.HIP,
-    val instructions: List<String> = emptyList(),
+    val instructions: String = "", // Changed from List<String> to String to match Firestore
     val videoUrl: String = "",
     val imageUrl: String = ""
 )

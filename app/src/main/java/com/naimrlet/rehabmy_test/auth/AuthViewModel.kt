@@ -103,6 +103,50 @@ class AuthViewModel : ViewModel() {
         }
     }
 
+    suspend fun signUpWithEmailAndProfile(
+        email: String,
+        password: String,
+        name: String,
+        age: Int,
+        isTherapist: Boolean,
+        condition: String? = null
+    ): Result<Unit> {
+        return try {
+            isLoading = true
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+
+            // Create user document with profile information
+            result.user?.uid?.let { userId ->
+                val userProfile = mutableMapOf<String, Any>(
+                    "name" to name,
+                    "age" to age,
+                    "isTherapist" to isTherapist
+                )
+
+                // Add condition for patients only
+                if (!isTherapist && condition != null) {
+                    userProfile["condition"] = condition
+                }
+
+                firestore.collection("users").document(userId)
+                    .set(userProfile)
+                    .await()
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            val errorMessage = when (e) {
+                is FirebaseAuthWeakPasswordException -> "Password too weak (min 6 chars)"
+                is FirebaseAuthUserCollisionException -> "Email already registered"
+                is FirebaseAuthInvalidCredentialsException -> "Invalid email format"
+                else -> "Registration failed: ${e.message}"
+            }
+            Result.failure(Exception(errorMessage))
+        } finally {
+            isLoading = false
+        }
+    }
+
     fun logout() {
         auth.signOut()
         isAuthenticated = false

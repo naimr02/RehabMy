@@ -5,13 +5,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.naimrlet.rehabmy_test.BuildConfig // Import BuildConfig
 import com.naimrlet.rehabmy_test.auth.AuthViewModel
+import com.naimrlet.rehabmy_test.auth.components.UserType
 import com.naimrlet.rehabmy_test.auth.login.LoginScreen
 import com.naimrlet.rehabmy_test.auth.signup.SignUpScreen
+import com.naimrlet.rehabmy_test.auth.usertype.UserTypeSelectionScreen
 import com.naimrlet.rehabmy_test.patient.dashboard.PatientDashboardScreen
 import com.naimrlet.rehabmy_test.therapist.TherapistScreen
 import com.naimrlet.rehabmy_test.therapist.chat.therapistChatGraph // Import therapistChatGraph
@@ -20,9 +24,15 @@ import android.util.Log // Add this import
 
 object AppRoute {
     const val LOGIN = "login"
-    const val SIGNUP = "signup"
+    const val USER_TYPE_SELECTION = "user_type_selection"
+    const val SIGNUP = "signup/{userType}"
     const val HOME = "home"
     const val THERAPIST = "therapist"
+
+    // Helper function to create signup route with user type
+    fun createSignupRoute(userType: UserType): String {
+        return "signup/${userType.name}"
+    }
 }
 
 @Composable
@@ -62,13 +72,34 @@ fun AppNavigation(
                 onLoginSuccess = {
                     // Navigation handled by LaunchedEffect
                 },
-                onNavigateToSignUp = { navController.navigate(AppRoute.SIGNUP) },
+                onNavigateToSignUp = { navController.navigate(AppRoute.USER_TYPE_SELECTION) },
                 darkModeViewModel = darkModeViewModel
             )
         }
 
-        composable(AppRoute.SIGNUP) {
+        composable(AppRoute.USER_TYPE_SELECTION) {
+            UserTypeSelectionScreen(
+                onUserTypeSelected = { userType ->
+                    navController.navigate(AppRoute.createSignupRoute(userType))
+                },
+                onNavigateBack = { navController.navigate(AppRoute.LOGIN) },
+                darkModeViewModel = darkModeViewModel
+            )
+        }
+
+        composable(
+            route = AppRoute.SIGNUP,
+            arguments = listOf(navArgument("userType") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userTypeString = backStackEntry.arguments?.getString("userType") ?: "PATIENT"
+            val userType = try {
+                UserType.valueOf(userTypeString)
+            } catch (e: IllegalArgumentException) {
+                UserType.PATIENT // Default fallback
+            }
+
             SignUpScreen(
+                userType = userType,
                 onSignUpSuccess = {
                     // Navigation handled by LaunchedEffect
                 },

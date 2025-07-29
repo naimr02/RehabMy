@@ -4,11 +4,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -35,6 +38,7 @@ fun AboutScreen() {
     val yearlyProgress by progressViewModel.yearlyProgress.collectAsState()
     val selectedPeriod by progressViewModel.selectedPeriod.collectAsState()
     val loading by progressViewModel.loading.collectAsState()
+    val currentDateRange by progressViewModel.currentDateRange.collectAsState()
 
     Column(
         modifier = Modifier
@@ -53,7 +57,18 @@ fun AboutScreen() {
                 selectedPeriod = selectedPeriod,
                 onPeriodSelected = { progressViewModel.setSelectedPeriod(it) }
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Display current date range with navigation
+            currentDateRange?.let { dateRange ->
+                DateRangeNavigationCard(
+                    dateRange = dateRange,
+                    onPreviousClick = { progressViewModel.navigateToPrevious() },
+                    onNextClick = { progressViewModel.navigateToNext() },
+                    canNavigateNext = progressViewModel.canNavigateNext()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             ProgressChart(
                 selectedPeriod = selectedPeriod,
@@ -332,5 +347,77 @@ private fun SummaryItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+private fun DateRangeNavigationCard(
+    dateRange: com.naimrlet.rehabmy_test.patient.progress.DateRangeInfo,
+    onPreviousClick: () -> Unit,
+    onNextClick: () -> Unit,
+    canNavigateNext: Boolean
+) {
+    // Use Malaysian timezone for date formatting
+    val malaysianTimeZone = TimeZone.getTimeZone("Asia/Kuala_Lumpur")
+
+    val dateFormat = when (dateRange.period) {
+        com.naimrlet.rehabmy_test.patient.progress.ProgressPeriod.WEEKLY -> SimpleDateFormat("EEE, MMM dd", Locale.getDefault()).apply { timeZone = malaysianTimeZone }
+        com.naimrlet.rehabmy_test.patient.progress.ProgressPeriod.MONTHLY -> SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).apply { timeZone = malaysianTimeZone }
+        com.naimrlet.rehabmy_test.patient.progress.ProgressPeriod.YEARLY -> SimpleDateFormat("MMM yyyy", Locale.getDefault()).apply { timeZone = malaysianTimeZone }
+    }
+
+    val startDate = dateFormat.format(dateRange.startDate)
+    val endDate = dateFormat.format(dateRange.endDate)
+
+    val rangeText = when (dateRange.period) {
+        com.naimrlet.rehabmy_test.patient.progress.ProgressPeriod.WEEKLY -> "Week: $startDate - $endDate"
+        com.naimrlet.rehabmy_test.patient.progress.ProgressPeriod.MONTHLY -> "Month: $startDate - $endDate"
+        com.naimrlet.rehabmy_test.patient.progress.ProgressPeriod.YEARLY -> "Year: $startDate - $endDate"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onPreviousClick,
+                enabled = true // Always enabled for previous
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Previous",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Text(
+                text = rangeText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(
+                onClick = onNextClick,
+                enabled = canNavigateNext // Enable/disable based on navigation state
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = "Next",
+                    tint = if (canNavigateNext) MaterialTheme.colorScheme.onSurface
+                          else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
+        }
     }
 }
